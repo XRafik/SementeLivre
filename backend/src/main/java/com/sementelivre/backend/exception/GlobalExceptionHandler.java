@@ -170,7 +170,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleDatabaseExceptions(DataIntegrityViolationException e, HttpServletRequest request) {
         HttpStatus status = HttpStatus.CONFLICT;
 
-        String constraint = mensagemParaViolacao(e);
+        String constraint = constraintConhecida(e);
         String mensagem = constraint != null ? MENSAGENS_POR_CONSTRAINT.get(constraint) : MENSAGEM_GENERICA_INTEGRIDADE;
         List<String> fieldErrors = constraint != null
                 ? List.of(CAMPOS_POR_CONSTRAINT.get(constraint) + ": " + mensagem)
