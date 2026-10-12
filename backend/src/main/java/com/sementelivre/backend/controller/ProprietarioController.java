@@ -30,7 +30,9 @@ public class ProprietarioController {
         this.pessoaService = pessoaService;
     }
 
+    // O cadastro aberto e o POST /auth/cadastrar; por aqui so admin cria contas.
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProprietarioResponseDTO> criar(@Valid @RequestBody ProprietarioCreateRequestDTO dto) {
         Proprietario proprietario = proprietarioService.criar(dto);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -40,7 +42,9 @@ public class ProprietarioController {
         return ResponseEntity.created(location).body(mapToResponse(proprietario));
     }
 
+    // CPF, RG, e-mail e endereco de todo mundo: so admin lista.
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ProprietarioResponseDTO>> listar() {
         List<ProprietarioResponseDTO> proprietarios = pessoaService.listarTodas().stream()
                 .filter(p -> p instanceof Proprietario)
@@ -49,7 +53,9 @@ public class ProprietarioController {
         return ResponseEntity.ok(proprietarios);
     }
 
+    // Cada um consulta so os proprios dados; admin consulta qualquer um.
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id == principal.id")
     public ResponseEntity<ProprietarioResponseDTO> buscarPorId(@PathVariable UUID id) {
         Pessoa pessoa = pessoaService.buscarPorId(id);
         if (!(pessoa instanceof Proprietario)) {

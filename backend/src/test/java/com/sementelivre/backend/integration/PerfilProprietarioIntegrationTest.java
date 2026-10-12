@@ -115,7 +115,7 @@ class PerfilProprietarioIntegrationTest extends AbstractAuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(atualizacaoJson("Maria", joao.email())))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.fieldErrors", contains("email: Email já cadastrado no sistema.")));
+                .andExpect(jsonPath("$.fieldErrors", contains("email: E-mail já cadastrado no sistema.")));
     }
 
     @Test

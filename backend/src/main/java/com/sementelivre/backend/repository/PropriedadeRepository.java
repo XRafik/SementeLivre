@@ -39,4 +39,9 @@ public interface PropriedadeRepository extends BaseRepository<Propriedade, UUID>
     @Query("delete from Propriedade p where p.proprietario.id = :proprietarioId")
     void deleteAllByProprietarioId(@Param("proprietarioId") UUID proprietarioId);
 
+    long countByProprietarioId(UUID proprietarioId);
+
+    @Query("select p.logradouro.id from Propriedade p where p.proprietario.id = :proprietarioId")
+    List<UUID> findLogradouroIdsByProprietarioId(@Param("proprietarioId") UUID proprietarioId);
+
 }

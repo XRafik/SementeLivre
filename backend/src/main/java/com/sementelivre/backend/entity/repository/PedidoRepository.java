@@ -63,9 +63,20 @@ public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
 
     /**
      * Exclui os pedidos em que a pessoa é solicitante ou recebedora. Os itens
-     * caem por ON DELETE CASCADE na migration, então não precisam sair antes.
+     * precisam sair antes (ItensRepository.deleteAllDePedidosEnvolvendoPessoa):
+     * itens_pedido_t.pedido_id é ON DELETE RESTRICT.
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from Pedido p where p.usuarioSolicitante.id = :id or p.proprietarioRecebedor.id = :id")
     void deleteAllEnvolvendoPessoa(@Param("id") UUID id);
+
+    @Query("select count(p) from Pedido p where p.usuarioSolicitante.id = :id or p.proprietarioRecebedor.id = :id")
+    long countEnvolvendoPessoa(@Param("id") UUID id);
+
+    @Query("""
+            select distinct p.comprador.id from Pedido p
+            where (p.usuarioSolicitante.id = :id or p.proprietarioRecebedor.id = :id)
+              and p.comprador is not null
+            """)
+    List<UUID> findCompradorIdsEnvolvendoPessoa(@Param("id") UUID id);
 }

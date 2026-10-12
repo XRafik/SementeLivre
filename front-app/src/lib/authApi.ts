@@ -91,18 +91,6 @@ export function atualizarProprietarioApi(id: string, dados: PessoaUpdateRequest)
   return apiPut<Proprietario>(`/api/proprietarios/${id}`, dados);
 }
 
-export interface ProprietarioResumo {
-  id: string;
-  nome: string;
-  email: string;
-  telefone: string;
-}
-
-/** Usado para resolver o nome do recebedor exibido nos pedidos. */
-export function buscarProprietarioApi(id: string): Promise<ProprietarioResumo> {
-  return apiGet<ProprietarioResumo>(`/api/proprietarios/${id}`);
-}
-
 export async function alterarSenhaApi(senhaAtual: string, novaSenha: string): Promise<void> {
   await apiPost<MensagemResponse>('/auth/alterar-senha', { senhaAtual, novaSenha });
 }

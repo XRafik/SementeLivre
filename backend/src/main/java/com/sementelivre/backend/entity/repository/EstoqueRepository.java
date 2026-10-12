@@ -44,15 +44,25 @@ public interface EstoqueRepository extends JpaRepository<Estoque, UUID> {
      * Estoques de um proprietario que podem ser exibidos no site publico
      * (issue #91).
      */
+    default List<Estoque> findVisiveisNoSitePublico(UUID proprietarioId) {
+        return findByProprietarioIdExcetoDisponibilidade(proprietarioId, Disponibilidade.INDISPONIVEL);
+    }
+
+    /**
+     * A disponibilidade vai como parametro, e nao como literal no JPQL: com o
+     * literal o Hibernate gera o cast para o tipo "disponibilidade" (nome da
+     * classe Java), que nao existe no PostgreSQL, e o perfil publico dava 500.
+     */
     @Query("""
             select e from Estoque e
             join fetch e.produto p
             where e.proprietario.id = :proprietarioId
-              and e.disponibilidade <> com.sementelivre.backend.entity.enums.Disponibilidade.INDISPONIVEL
+              and e.disponibilidade <> :excluida
             order by p.nomePopular
             """)
-    List<Estoque> findVisiveisNoSitePublico(
-            @Param("proprietarioId") UUID proprietarioId);
+    List<Estoque> findByProprietarioIdExcetoDisponibilidade(
+            @Param("proprietarioId") UUID proprietarioId,
+            @Param("excluida") Disponibilidade excluida);
 
     /**
      * Catalogo publico - issue #93.

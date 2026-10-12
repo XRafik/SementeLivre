@@ -24,7 +24,9 @@ public class UsuarioController {
         this.usuarioService = usuarioService;
     }
 
+    // So admin lista as contas; a resposta traz CPF, RG e endereco.
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UsuarioResponseDTO>> listar() {
         List<UsuarioResponseDTO> usuarios = usuarioService.listarTodos().stream()
                 .map(UsuarioResponseDTO::fromEntity)
@@ -32,7 +34,9 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarios);
     }
 
+    // Cada um consulta so a propria conta; admin consulta qualquer uma.
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id == principal.id")
     public ResponseEntity<UsuarioResponseDTO> buscarPorId(@PathVariable UUID id) {
         return ResponseEntity.ok(UsuarioResponseDTO.fromEntity(usuarioService.buscarPorId(id)));
     }

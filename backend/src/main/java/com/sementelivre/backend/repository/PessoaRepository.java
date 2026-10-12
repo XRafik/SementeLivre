@@ -7,6 +7,6 @@ import java.util.UUID;
 
 @Repository
 public interface PessoaRepository extends BaseRepository<Pessoa, UUID> {
-    boolean existsByEmail(String email);
+    boolean existsByEmailIgnoreCase(String email);
     boolean existsByDocumento(String documento);
 }
