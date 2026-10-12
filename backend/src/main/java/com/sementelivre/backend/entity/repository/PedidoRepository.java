@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -59,4 +60,11 @@ public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Pedido p where p.id = :id")
     Optional<Pedido> findParaAtualizacao(@Param("id") UUID id);
+
+    /**
+     * Exclui os pedidos em que a pessoa é solicitante ou recebedora.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from Pedido p where p.usuarioSolicitante.id = :id or p.proprietarioRecebedor.id = :id")
+    void deleteAllEnvolvendoPessoa(@Param("id") UUID id);
 }
