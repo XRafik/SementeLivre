@@ -232,6 +232,63 @@ export function apiDelete<T>(path: string, options?: RequestOptions): Promise<T>
   return request<T>(path, { ...options, method: 'DELETE' });
 }
 
+/**
+ * Envia FormData (multipart) com o accessToken e renova o token em caso de 401.
+ * Não define Content-Type: o próprio browser acrescenta o boundary do multipart.
+ */
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const doFetch = (token: string | null, dados: FormData) =>
+    fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: dados,
+    }).catch(() => {
+      emitirToast(MENSAGEM_SEM_CONEXAO, 'error');
+      throw buildApiError(0, { message: MENSAGEM_SEM_CONEXAO, code: 'network/offline' });
+    });
+
+  let res = await doFetch(getAccessToken(), formData);
+
+  if (res.status === 401) {
+    const newToken = await silentRefresh();
+    if (!newToken) {
+      clearTokens();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('sl:session-expired'));
+      }
+      emitirToast(MENSAGEM_SESSAO_EXPIRADA, 'warning');
+      throw buildApiError(401, { message: MENSAGEM_SESSAO_EXPIRADA, code: 'auth/session-expired' });
+    }
+    // O FormData só pode ser lido uma vez: recria os campos para o reenvio.
+    const reenvio = new FormData();
+    formData.forEach((valor, chave) => reenvio.append(chave, valor));
+    res = await doFetch(newToken, reenvio);
+  }
+
+  if (!res.ok) {
+    const texto = await res.text();
+    let body: unknown = texto;
+    try {
+      body = JSON.parse(texto);
+    } catch {
+      // resposta não-JSON
+    }
+    throw buildApiError(res.status, body);
+  }
+
+  if (res.status === 204) return undefined as unknown as T;
+
+  // O /produtos/upload-foto devolve uma String crua (text/plain), não JSON.
+  // Tentamos o parse e, se não for JSON, devolvemos o texto como está.
+  const texto = (await res.text()).trim();
+  if (!texto) return undefined as unknown as T;
+  try {
+    return JSON.parse(texto) as T;
+  } catch {
+    return texto as unknown as T;
+  }
+}
+
 /** Anexa os parâmetros preenchidos à rota: comQuery('/pedidos', { status: 'PENDENTE', tipo: undefined }). */
 export function comQuery(path: string, query: Record<string, string | number | null | undefined>): string {
   const params = new URLSearchParams();
