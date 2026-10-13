@@ -15,6 +15,8 @@ public interface PropriedadeRepository extends BaseRepository<Propriedade, UUID>
 
     List<Propriedade> findByProprietarioIdOrderByDataCadastroDesc(UUID proprietarioId);
 
+    boolean existsByIdAndProprietarioId(UUID id, UUID proprietarioId);
+
     /**
      * Comunidades de um produtor (issue #91).
      *

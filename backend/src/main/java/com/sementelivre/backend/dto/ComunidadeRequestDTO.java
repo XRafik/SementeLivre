@@ -12,7 +12,7 @@ public record ComunidadeRequestDTO(
         String nome,
         // Logradouro já cadastrado; quem não tem o id (o front-app) manda o endereco
         UUID logradouroId,
-        // Onde fica a comunidade; cria (ou atualiza) o logradouro dela
+        // Onde fica a comunidade; vira um logradouro novo (o atual não é alterado)
         @Valid
         LogradouroDTO endereco
 ) {

@@ -1,7 +1,9 @@
 package com.sementelivre.backend.integration;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -109,5 +111,58 @@ class PropriedadeComunidadeIntegrationTest extends AbstractAuthIntegrationTest {
                                 {"nome": "Sem Endereço", "tamanhoHectares": 1, "proprietarioId": "%s", "comunidadeId": "%s"}"""
                                 .formatted(eu.id(), comunidadeId)))
                 .andExpect(status().isBadRequest());
+    }
+
+    private String criarPropriedade(String token, String proprietarioId, String comunidadeId) throws Exception {
+        String resposta = mockMvc.perform(post("/api/propriedades")
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(propriedadeJson("Sítio " + sufixoUnico(), proprietarioId, comunidadeId)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return JsonPath.read(resposta, "$.id");
+    }
+
+    /** A resposta traz o endereço completo: por id, só o dono e o admin leem, alteram ou excluem. */
+    @Test
+    void propriedadePorIdSoParaODonoOuAdmin() throws Exception {
+        Conta dono = cadastrar();
+        Conta outro = cadastrar();
+        String tokenDono = login(dono.email(), SENHA);
+        String tokenOutro = login(outro.email(), SENHA);
+        String comunidadeId = solicitarComunidade(tokenDono);
+        String id = criarPropriedade(tokenDono, dono.id(), comunidadeId);
+
+        mockMvc.perform(get("/api/propriedades/" + id).header(HttpHeaders.AUTHORIZATION, tokenOutro))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/propriedades/" + id)
+                        .header(HttpHeaders.AUTHORIZATION, tokenOutro)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(propriedadeJson("Tomada", outro.id(), comunidadeId)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/propriedades/" + id).header(HttpHeaders.AUTHORIZATION, tokenOutro))
+                .andExpect(status().isForbidden());
+
+        // O dono não passa a propriedade para outra pessoa
+        mockMvc.perform(put("/api/propriedades/" + id)
+                        .header(HttpHeaders.AUTHORIZATION, tokenDono)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(propriedadeJson("Doada", outro.id(), comunidadeId)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/propriedades/" + id).header(HttpHeaders.AUTHORIZATION, tokenDono))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.endereco.logradouro").value("Córrego Fundo, S/N"));
+        mockMvc.perform(put("/api/propriedades/" + id)
+                        .header(HttpHeaders.AUTHORIZATION, tokenDono)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(propriedadeJson("Sítio Renomeado", dono.id(), comunidadeId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Sítio Renomeado"));
+        mockMvc.perform(get("/api/propriedades/" + id).header(HttpHeaders.AUTHORIZATION, loginAdmin()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/propriedades/" + id).header(HttpHeaders.AUTHORIZATION, tokenDono))
+                .andExpect(status().isNoContent());
     }
 }

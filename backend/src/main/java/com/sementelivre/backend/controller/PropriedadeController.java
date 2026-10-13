@@ -52,8 +52,9 @@ public class PropriedadeController {
                 : propriedadeService.listarPorProprietario(proprietarioId));
     }
 
-    // READ - busca por id
+    // READ - busca por id (admin ou o dono)
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @propriedadeService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<PropriedadeResponseDTO> buscarPorId(
             @PathVariable UUID id){
 
@@ -61,8 +62,10 @@ public class PropriedadeController {
                 propriedadeService.buscarPorId(id));
     }
 
-    // UPDATE
+    // UPDATE - o dono não pode passar a propriedade para outra pessoa
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or (@propriedadeService.ehDoProprietario(#id, principal.id)"
+            + " and #propriedade.proprietarioId() == principal.id)")
     public ResponseEntity<PropriedadeResponseDTO> atualizar(
             @PathVariable UUID id,
             @Valid @RequestBody PropriedadeRequestDTO propriedade){
@@ -71,8 +74,9 @@ public class PropriedadeController {
                 propriedadeService.atualizar(id,propriedade));
     }
 
-    // DELETE
+    // DELETE (admin ou o dono)
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @propriedadeService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<Void> deletar(
             @PathVariable UUID id){
         propriedadeService.deletar(id);

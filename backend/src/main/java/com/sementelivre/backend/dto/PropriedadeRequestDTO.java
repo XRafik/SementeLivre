@@ -23,7 +23,7 @@ public record PropriedadeRequestDTO(
         UUID proprietarioId,
         @NotNull(message = "O ID da comunidade ligado a esta propriedade é obrigatório.")
         UUID comunidadeId,
-        // Endereço da propriedade; cria (ou atualiza) o logradouro dela
+        // Endereço da propriedade; vira um logradouro novo (o atual não é alterado)
         @Valid
         LogradouroDTO endereco
 ) {

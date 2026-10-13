@@ -80,6 +80,11 @@ public class PropriedadeService implements CrudService<PropriedadeRequestDTO, Pr
                 .toList();
     }
 
+    /** Usado no @PreAuthorize do controller: a propriedade existe e é desse proprietário. */
+    public boolean ehDoProprietario(UUID propriedadeId, UUID proprietarioId) {
+        return propriedadeRepository.existsByIdAndProprietarioId(propriedadeId, proprietarioId);
+    }
+
     /** Propriedades de um proprietário, mais recentes primeiro. */
     public List<PropriedadeResponseDTO> listarPorProprietario(UUID proprietarioId) {
         return propriedadeRepository.findByProprietarioIdOrderByDataCadastroDesc(proprietarioId)
