@@ -1,16 +1,15 @@
-package com.sementelivre.backend.entity.repository;
+package com.sementelivre.backend.repository;
 
 import java.util.Collection;
 import java.util.UUID;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.sementelivre.backend.entity.Comprador;
 
-public interface CompradorRepository extends JpaRepository<Comprador, UUID> {
+public interface CompradorRepository extends BaseRepository<Comprador, UUID> {
 
     /**
      * Remove, entre os compradores informados, os que não estão mais em nenhum

@@ -28,7 +28,7 @@ import com.sementelivre.backend.entity.enums.Disponibilidade;
 import com.sementelivre.backend.entity.enums.EspecieGeral;
 import com.sementelivre.backend.entity.enums.FormatoProduto;
 import com.sementelivre.backend.entity.enums.TipoProduto;
-import com.sementelivre.backend.entity.repository.EstoqueRepository;
+import com.sementelivre.backend.repository.EstoqueRepository;
 import com.sementelivre.backend.exception.ResourceNotFoundException;
 import com.sementelivre.backend.repository.PropriedadeRepository;
 import com.sementelivre.backend.repository.ProprietarioRepository;

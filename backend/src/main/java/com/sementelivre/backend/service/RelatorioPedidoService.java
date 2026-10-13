@@ -13,7 +13,7 @@ import com.sementelivre.backend.entity.Itens;
 import com.sementelivre.backend.entity.Pedido;
 import com.sementelivre.backend.entity.enums.StatusPedido;
 import com.sementelivre.backend.entity.enums.TipoPedido;
-import com.sementelivre.backend.entity.repository.PedidoRepository;
+import com.sementelivre.backend.repository.PedidoRepository;
 
 /**
  * Monta os dados do relatorio de pedidos recebidos (RF-07, issue #95).

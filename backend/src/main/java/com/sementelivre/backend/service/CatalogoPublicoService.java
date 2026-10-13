@@ -17,7 +17,7 @@ import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.enums.Disponibilidade;
 import com.sementelivre.backend.entity.enums.EspecieGeral;
 import com.sementelivre.backend.entity.enums.TipoProduto;
-import com.sementelivre.backend.entity.repository.EstoqueRepository;
+import com.sementelivre.backend.repository.EstoqueRepository;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 
 @Service

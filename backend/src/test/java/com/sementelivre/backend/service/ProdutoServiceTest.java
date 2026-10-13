@@ -24,7 +24,7 @@ import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.enums.EspecieGeral;
 import com.sementelivre.backend.entity.enums.FormatoProduto;
 import com.sementelivre.backend.entity.enums.TipoProduto;
-import com.sementelivre.backend.entity.repository.ProdutoRepository;
+import com.sementelivre.backend.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 
 @ExtendWith(MockitoExtension.class)

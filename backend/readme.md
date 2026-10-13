@@ -226,10 +226,15 @@ Para manter os domínios uniformes, existem dois contratos base:
   ```java
   @Service
   public class ComunidadeService
-          implements CrudService<ComunidadeDTO, ComunidadeDTO, UUID> {
+          implements CrudService<ComunidadeRequestDTO, ComunidadeResponseDTO, UUID> {
       // criar, buscarPorId, listar, atualizar, deletar
   }
   ```
+
+> `EstruturaDePacotesTest` confere essas regras a cada build: repositórios só em
+> `repository/` e estendendo `BaseRepository`, `@RestController` só em `controller/`,
+> `@Service` em `service/` (ou `security/`, para autenticação) e `@Entity` em `entity/`.
+> Validadores auxiliares (ex.: `DocumentoValidator`) ficam em `util/`.
 
 > Não há um controller base: os `@RestController` variam demais em rotas, códigos
 > de status e documentação OpenAPI para uma superclasse comum agregar valor.

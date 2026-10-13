@@ -1,4 +1,4 @@
-package com.sementelivre.backend.validation;
+package com.sementelivre.backend.util;
 
 import com.sementelivre.backend.entity.enums.TipoDocumento;
 

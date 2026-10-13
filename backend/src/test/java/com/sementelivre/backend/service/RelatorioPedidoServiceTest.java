@@ -23,7 +23,7 @@ import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.Usuario;
 import com.sementelivre.backend.entity.enums.StatusPedido;
 import com.sementelivre.backend.entity.enums.TipoPedido;
-import com.sementelivre.backend.entity.repository.PedidoRepository;
+import com.sementelivre.backend.repository.PedidoRepository;
 
 @ExtendWith(MockitoExtension.class)
 class RelatorioPedidoServiceTest {

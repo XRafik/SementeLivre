@@ -1,10 +1,9 @@
-package com.sementelivre.backend.entity.repository;
+package com.sementelivre.backend.repository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,7 +13,7 @@ import com.sementelivre.backend.entity.Pedido;
 
 import jakarta.persistence.LockModeType;
 
-public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
+public interface PedidoRepository extends BaseRepository<Pedido, UUID> {
 
     // Carrega os itens junto para evitar N+1 na listagem.
     // distinct porque o join com itens multiplica as linhas de pedido.

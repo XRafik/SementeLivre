@@ -18,7 +18,7 @@ import com.sementelivre.backend.entity.enums.Pesagem;
 import com.sementelivre.backend.entity.enums.TipoMovimentacao;
 import com.sementelivre.backend.entity.enums.TipoPedido;
 import com.sementelivre.backend.entity.enums.TipoProduto;
-import com.sementelivre.backend.entity.repository.ProdutoRepository;
+import com.sementelivre.backend.repository.ProdutoRepository;
 import com.sementelivre.backend.service.EstoqueService;
 
 import jakarta.persistence.EntityManager;

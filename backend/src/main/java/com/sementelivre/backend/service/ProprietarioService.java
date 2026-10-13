@@ -11,7 +11,7 @@ import com.sementelivre.backend.entity.enums.PerfilEnum;
 import com.sementelivre.backend.repository.LogradouroRepository;
 import com.sementelivre.backend.repository.PessoaRepository;
 import com.sementelivre.backend.repository.ProprietarioRepository;
-import com.sementelivre.backend.validation.DocumentoValidator;
+import com.sementelivre.backend.util.DocumentoValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

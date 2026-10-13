@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import com.sementelivre.backend.dto.ProdutoRequestDTO;
 import com.sementelivre.backend.dto.ProdutoResponseDTO;
 import com.sementelivre.backend.entity.Produto;
-import com.sementelivre.backend.entity.repository.ProdutoRepository;
+import com.sementelivre.backend.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
