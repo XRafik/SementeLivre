@@ -4,10 +4,13 @@ export const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
 /** Repassa a resposta do backend (status e corpo) para o navegador. */
 export async function repassar(res: Response): Promise<Response> {
   const corpo = await res.text();
-  return new Response(corpo, {
-    status: res.status,
-    headers: { "Content-Type": res.headers.get("Content-Type") ?? "application/json" },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": res.headers.get("Content-Type") ?? "application/json",
+  };
+  // 429 do limite de pedidos: diz em quantos segundos tentar de novo
+  const retryAfter = res.headers.get("Retry-After");
+  if (retryAfter) headers["Retry-After"] = retryAfter;
+  return new Response(corpo, { status: res.status, headers });
 }
 
 export function backendIndisponivel(): Response {
