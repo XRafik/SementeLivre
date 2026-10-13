@@ -40,7 +40,9 @@ public class ProprietarioController {
         return ResponseEntity.created(location).body(mapToResponse(proprietario));
     }
 
+    // Lista dados pessoais (CPF, e-mail, endereço) de todos: só admin.
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ProprietarioResponseDTO>> listar() {
         List<ProprietarioResponseDTO> proprietarios = pessoaService.listarTodas().stream()
                 .filter(p -> p instanceof Proprietario)
@@ -49,7 +51,9 @@ public class ProprietarioController {
         return ResponseEntity.ok(proprietarios);
     }
 
+    // Cada um vê só os próprios dados; admin vê qualquer um.
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id == principal.id")
     public ResponseEntity<ProprietarioResponseDTO> buscarPorId(@PathVariable UUID id) {
         Pessoa pessoa = pessoaService.buscarPorId(id);
         if (!(pessoa instanceof Proprietario)) {

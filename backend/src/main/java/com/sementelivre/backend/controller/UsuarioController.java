@@ -24,7 +24,9 @@ public class UsuarioController {
         this.usuarioService = usuarioService;
     }
 
+    // Lista dados pessoais (CPF, e-mail, endereço) de todos: só admin.
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UsuarioResponseDTO>> listar() {
         List<UsuarioResponseDTO> usuarios = usuarioService.listarTodos().stream()
                 .map(UsuarioResponseDTO::fromEntity)
@@ -32,7 +34,9 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarios);
     }
 
+    // Cada um vê só os próprios dados; admin vê qualquer um.
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id == principal.id")
     public ResponseEntity<UsuarioResponseDTO> buscarPorId(@PathVariable UUID id) {
         return ResponseEntity.ok(UsuarioResponseDTO.fromEntity(usuarioService.buscarPorId(id)));
     }
