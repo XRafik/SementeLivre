@@ -108,11 +108,15 @@ public class RelatorioPedidoService {
         return pedido.getDataPedido().format(DATA);
     }
 
+    // Pedido do site público não tem conta: quem pediu é o comprador
     private String solicitante(Pedido pedido) {
-        if (pedido.getUsuarioSolicitante() == null) {
-            return "-";
+        if (pedido.getUsuarioSolicitante() != null) {
+            return pedido.getUsuarioSolicitante().getNome();
         }
-        return pedido.getUsuarioSolicitante().getNome();
+        if (pedido.getComprador() != null) {
+            return pedido.getComprador().getNome();
+        }
+        return "-";
     }
 
     // Junta os itens em um texto so: "2 x Feijao Crioulo, 1 x Milho"

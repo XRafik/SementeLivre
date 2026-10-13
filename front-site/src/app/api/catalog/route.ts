@@ -1,15 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/store";
+import { BACKEND_URL, backendIndisponivel } from "@/lib/backend";
 
-const sleep = () => new Promise((r) => setTimeout(r, 400));
-
-export async function GET(request: NextRequest) {
-  await sleep();
-  const id_comunidade = request.nextUrl.searchParams.get("id_comunidade");
-  if (id_comunidade) {
-    return NextResponse.json(
-      db.species.filter((s) => s.id_comunidade === id_comunidade)
-    );
+// Catálogo público do backend. O site lista tudo de uma vez e filtra no navegador.
+export async function GET() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/catalogo/produtos?size=200`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return backendIndisponivel();
+    const pagina = await res.json();
+    return Response.json(pagina.content ?? []);
+  } catch {
+    return backendIndisponivel();
   }
-  return NextResponse.json(db.species);
 }

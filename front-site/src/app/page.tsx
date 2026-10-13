@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import PublicHeader from "@/components/public-header";
+import FotoProduto from "@/components/foto-produto";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,51 +24,15 @@ import {
   ArrowRight,
   MessageCircle,
 } from "lucide-react";
-import type { Species, SpeciesStatus, Comunidade, TipoSemente } from "@/lib/types";
+import type { Disponibilidade, OfertaCatalogo, TipoProduto } from "@/lib/types";
+import { DISPONIBILIDADE_CONFIG, TIPO_PRODUTO_LABEL, unidade } from "@/lib/catalogo";
 
-// ── Status config ─────────────────────────────────────────────────────────────
-const STATUS_CONFIG: Record<
-  SpeciesStatus,
-  { label: string; className: string; show: boolean }
-> = {
-  exchange: {
-    label: "Para Troca",
-    className: "bg-blue-100 text-blue-700 border-blue-200",
-    show: true,
-  },
-  sale: {
-    label: "Para Venda",
-    className: "bg-green-100 text-green-700 border-green-200",
-    show: true,
-  },
-  donation: {
-    label: "Para Doação",
-    className: "bg-purple-100 text-purple-700 border-purple-200",
-    show: true,
-  },
-  unavailable: {
-    label: "Indisponível",
-    className: "bg-gray-100 text-gray-400 border-gray-200",
-    show: true,
-  },
-};
-
-const TIPO_CONFIG: Record<TipoSemente, string> = {
-  HORTALICA: "Hortaliça",
-  FRUTIFERA: "Frutífera",
-  FORRAGEIRA: "Forrageira",
-  CEREAL: "Cereal",
-  LEGUMINOSA: "Leguminosa",
-  OUTRAS: "Outras",
-};
-
-type FilterStatus = SpeciesStatus | "all";
-type FilterTipo = TipoSemente | "all";
+type FilterStatus = Disponibilidade | "all";
+type FilterTipo = TipoProduto | "all";
 
 export default function MarketplacePage() {
   const router = useRouter();
-  const [species, setSpecies] = useState<Species[]>([]);
-  const [comunidades, setComunidades] = useState<Comunidade[]>([]);
+  const [ofertas, setOfertas] = useState<OfertaCatalogo[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterStatus>("all");
@@ -75,38 +40,43 @@ export default function MarketplacePage() {
   const [filterComunidade, setFilterComunidade] = useState("all");
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/catalog").then((r) => r.json()),
-      fetch("/api/comunidades").then((r) => r.json()),
-    ])
-      .then(([sp, cm]: [Species[], Comunidade[]]) => {
-        setSpecies(sp);
-        setComunidades(cm);
+    fetch("/api/catalog")
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
       })
+      .then((lista: OfertaCatalogo[]) =>
+        setOfertas([...lista].sort((a, b) => a.nomePopular.localeCompare(b.nomePopular, "pt-BR")))
+      )
       .catch(() => toast.error("Erro ao carregar sementes."))
       .finally(() => setLoading(false));
   }, []);
 
-  function getNomeComunidade(id?: string) {
-    return comunidades.find((c) => c.id_comunidade === id)?.nome ?? null;
-  }
+  // Só as comunidades que têm alguma oferta no catálogo
+  const comunidades = Array.from(
+    new Map(
+      ofertas
+        .filter((o) => o.comunidadeId && o.comunidade)
+        .map((o) => [o.comunidadeId as string, o.comunidade as string])
+    )
+  ).sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
 
-  const filtered = species.filter((s) => {
-    const matchSearch = s.nome_popular
+  const filtered = ofertas.filter((o) => {
+    const matchSearch = o.nomePopular
       .toLowerCase()
       .includes(search.toLowerCase());
-    const matchFilter = filter === "all" || s.status === filter;
-    const matchTipo = filterTipo === "all" || s.tipoSemente === filterTipo;
+    const matchFilter = filter === "all" || o.disponibilidade === filter;
+    const matchTipo = filterTipo === "all" || o.tipo === filterTipo;
     const matchComunidade =
-      filterComunidade === "all" || s.id_comunidade === filterComunidade;
+      filterComunidade === "all" || o.comunidadeId === filterComunidade;
     return matchSearch && matchFilter && matchTipo && matchComunidade;
   });
 
   const stats = {
-    total: species.length,
-    sale: species.filter((s) => s.status === "sale").length,
-    exchange: species.filter((s) => s.status === "exchange").length,
-    donation: species.filter((s) => s.status === "donation").length,
+    total: ofertas.length,
+    sale: ofertas.filter((o) => o.disponibilidade === "PARA_VENDA").length,
+    exchange: ofertas.filter((o) => o.disponibilidade === "PARA_TROCA").length,
+    donation: ofertas.filter((o) => o.disponibilidade === "PARA_DOACAO").length,
   };
 
   return (
@@ -188,9 +158,9 @@ export default function MarketplacePage() {
               className="rounded-md border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
             >
               <option value="all">Todas as comunidades</option>
-              {comunidades.map((c) => (
-                <option key={c.id_comunidade} value={c.id_comunidade}>
-                  {c.nome}
+              {comunidades.map(([id, nome]) => (
+                <option key={id} value={id}>
+                  {nome}
                 </option>
               ))}
             </select>
@@ -198,19 +168,11 @@ export default function MarketplacePage() {
 
           {/* Status pills */}
           <div className="flex gap-2 flex-wrap">
-            {(
-              [
-                "all",
-                "sale",
-                "exchange",
-                "donation",
-                "unavailable",
-              ] as FilterStatus[]
-            ).map((f) => {
+            {(["all", ...Object.keys(DISPONIBILIDADE_CONFIG)] as FilterStatus[]).map((f) => {
               const label =
                 f === "all"
                   ? "Todos"
-                  : STATUS_CONFIG[f as SpeciesStatus].label;
+                  : DISPONIBILIDADE_CONFIG[f as Disponibilidade].label;
               return (
                 <button
                   key={f}
@@ -229,8 +191,8 @@ export default function MarketplacePage() {
 
           {/* Tipo pills */}
           <div className="flex gap-2 flex-wrap">
-            {(["all", ...Object.keys(TIPO_CONFIG)] as FilterTipo[]).map((t) => {
-              const label = t === "all" ? "Todos os tipos" : TIPO_CONFIG[t as TipoSemente];
+            {(["all", ...Object.keys(TIPO_PRODUTO_LABEL)] as FilterTipo[]).map((t) => {
+              const label = t === "all" ? "Todos os tipos" : TIPO_PRODUTO_LABEL[t as TipoProduto];
               return (
                 <button
                   key={t}
@@ -270,35 +232,28 @@ export default function MarketplacePage() {
         {/* Grid */}
         {!loading && filtered.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filtered.map((sp) => {
-              const cfg = STATUS_CONFIG[sp.status];
-              const unavailable = sp.status === "unavailable";
+            {filtered.map((oferta) => {
+              const cfg = DISPONIBILIDADE_CONFIG[oferta.disponibilidade];
+              const descricao = oferta.descricao || oferta.historico;
 
               return (
                 <Card
-                  key={sp.id_especie}
-                  className={`group flex flex-col border-green-100 bg-white hover:shadow-lg transition-all ${
-                    unavailable ? "opacity-60" : ""
-                  }`}
+                  key={oferta.estoqueId}
+                  className="group flex flex-col border-green-100 bg-white hover:shadow-lg transition-all"
                 >
                   {/* Photo */}
                   <div className="h-40 rounded-t-xl bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center overflow-hidden">
-                    {sp.foto ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={sp.foto}
-                        alt={sp.nome_popular}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <Leaf className="w-14 h-14 text-green-300" />
-                    )}
+                    <FotoProduto
+                      src={oferta.urlFoto}
+                      alt={oferta.nomePopular}
+                      iconClassName="w-14 h-14 text-green-300"
+                    />
                   </div>
 
                   <CardHeader className="pb-1 pt-4">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-sm leading-tight">
-                        {sp.nome_popular}
+                        {oferta.nomePopular}
                       </CardTitle>
                       <Badge
                         variant="outline"
@@ -307,9 +262,9 @@ export default function MarketplacePage() {
                         {cfg.label}
                       </Badge>
                     </div>
-                    {getNomeComunidade(sp.id_comunidade) && (
+                    {oferta.comunidade && (
                       <p className="text-[11px] text-green-600 font-medium mt-1">
-                        🌿 {getNomeComunidade(sp.id_comunidade)}
+                        🌿 {oferta.comunidade}
                       </p>
                     )}
                   </CardHeader>
@@ -319,42 +274,41 @@ export default function MarketplacePage() {
                       <div className="flex items-center gap-1.5 text-xs text-gray-400">
                         <FlaskConical className="w-3 h-3" />
                         <span className="italic">
-                          {sp.nome_cientifico || "—"}
+                          {oferta.nomeCientifico || "—"}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-gray-400">
                         <BookOpen className="w-3 h-3" />
-                        <span>{sp.familia_botanica || "—"}</span>
+                        <span>{oferta.familiaBotanica || "—"}</span>
                       </div>
-                      {sp.quantidadeEstoque != null && (
+                      {oferta.quantidade != null && (
                         <p className="text-xs text-gray-600 font-medium">
-                          📦 {sp.quantidadeEstoque}{" "}
-                          {sp.unidadePesagem ?? "unid."} em estoque
+                          📦 {oferta.quantidade} {unidade(oferta.tipoPesagem)} em estoque
                         </p>
                       )}
-                      {sp.preco != null && (
+                      {oferta.preco != null && (
                         <p className="text-xs text-green-700 font-semibold">
-                          R$ {sp.preco.toFixed(2)}/{sp.unidadePesagem ?? "unid."}
+                          R$ {oferta.preco.toFixed(2)}/{unidade(oferta.tipoPesagem)}
                         </p>
                       )}
-                      {sp.descricao && (
+                      {descricao && (
                         <p className="text-xs text-gray-500 leading-relaxed line-clamp-3 pt-1">
-                          {sp.descricao}
+                          {descricao}
                         </p>
                       )}
                     </div>
 
-                    {!unavailable && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="mt-3 w-full border-green-200 text-green-700 hover:bg-green-50 gap-1.5 text-xs h-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => router.push(`/produto/${sp.id_especie}`)}
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        Quero negociar
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-3 w-full border-green-200 text-green-700 hover:bg-green-50 gap-1.5 text-xs h-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() =>
+                        router.push(`/produto/${oferta.id}?oferta=${oferta.estoqueId}`)
+                      }
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      Quero negociar
+                    </Button>
                   </CardContent>
                 </Card>
               );

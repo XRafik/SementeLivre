@@ -85,6 +85,12 @@ public class SecurityConfig {
                                 "/catalogo/produtos/**"
                         ).permitAll()
 
+                        // Pedido feito pelo site publico: quem pede nao tem conta
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/catalogo/pedidos"
+                        ).permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(

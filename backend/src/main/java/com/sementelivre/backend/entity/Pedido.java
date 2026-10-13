@@ -61,8 +61,9 @@ public class Pedido {
     @Column(nullable = false, length = 12)
     private StatusPedido status = StatusPedido.PENDENTE;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "usuario_solicitante_id", nullable = false)
+    // Nulo nos pedidos feitos pelo site público: quem pede não tem conta (V10)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_solicitante_id")
     private Usuario usuarioSolicitante;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

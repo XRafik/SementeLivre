@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -23,6 +24,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.sementelivre.backend.dto.CompradorDTO;
 import com.sementelivre.backend.dto.ItemPedidoRequestDTO;
 import com.sementelivre.backend.dto.PedidoFiltroDTO;
+import com.sementelivre.backend.dto.PedidoPublicoRequestDTO;
+import com.sementelivre.backend.dto.PedidoPublicoResponseDTO;
 import com.sementelivre.backend.dto.PedidoRequestDTO;
 import com.sementelivre.backend.dto.PedidoResponseDTO;
 import com.sementelivre.backend.dto.PedidoUpdateDTO;
@@ -169,6 +172,68 @@ class PedidoServiceTest {
         PedidoResponseDTO resposta = pedidoService.criar(requestComQuantidade(QUANTIDADE_PEDIDA));
 
         assertNull(resposta.comprador());
+    }
+
+    // CRIAR PELO SITE PÚBLICO
+
+    @Test
+    void deveCriarPedidoPublicoComDadosDaOfertaESemSolicitante() {
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        PedidoPublicoResponseDTO resposta = pedidoService.criarPublico(requestPublico());
+
+        ArgumentCaptor<Pedido> salvo = ArgumentCaptor.forClass(Pedido.class);
+        verify(pedidoRepository).save(salvo.capture());
+        Pedido pedido = salvo.getValue();
+
+        assertNull(pedido.getUsuarioSolicitante());
+        assertEquals(proprietario, pedido.getProprietarioRecebedor());
+        // PARA_VENDA vira VENDA; preço vem do estoque, não do navegador
+        assertEquals(TipoPedido.VENDA, pedido.getTipoPedido());
+        assertEquals(15.0, pedido.getItens().get(0).getPrecoUnitario());
+        assertEquals("Ana Souza", pedido.getComprador().getNome());
+        assertEquals("ana@exemplo.com", pedido.getComprador().getEmail());
+        assertNull(pedido.getComprador().getTelefone());
+        assertNull(pedido.getMensagemOpcional());
+
+        assertEquals(StatusPedido.PENDENTE, resposta.status());
+        assertEquals("Milho crioulo", resposta.produto());
+        assertEquals(ESTOQUE_INICIAL - QUANTIDADE_PEDIDA, estoque.getQuantidade());
+        verify(notificacaoService).criarParaPedidoRegistrado(pedido);
+    }
+
+    @Test
+    void naoDeveCriarPedidoPublicoParaOfertaForaDoCatalogo() {
+        estoque.setDisponibilidade(Disponibilidade.A_NEGOCIAR);
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+
+        assertThrows(RecursoNaoEncontradoException.class,
+                () -> pedidoService.criarPublico(requestPublico()));
+
+        verify(pedidoRepository, never()).save(any(Pedido.class));
+    }
+
+    @Test
+    void naoDeveCriarPedidoPublicoParaOfertaInexistente() {
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.empty());
+
+        assertThrows(RecursoNaoEncontradoException.class,
+                () -> pedidoService.criarPublico(requestPublico()));
+    }
+
+    @Test
+    void naoDeveCriarPedidoPublicoQuandoQuantidadeMaiorQueEstoque() {
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+
+        PedidoPublicoRequestDTO dto = new PedidoPublicoRequestDTO(
+                estoque.getId(), ESTOQUE_INICIAL + 1, "Ana Souza", "ana@exemplo.com", null, null);
+
+        assertThrows(EstoqueInsuficienteException.class, () -> pedidoService.criarPublico(dto));
+
+        verify(pedidoRepository, never()).save(any(Pedido.class));
     }
 
     @Test
@@ -612,6 +677,11 @@ class PedidoServiceTest {
                 List.of(new ItemPedidoRequestDTO(produtoId, quantidade, 15.0)),
                 null
         );
+    }
+
+    private PedidoPublicoRequestDTO requestPublico() {
+        return new PedidoPublicoRequestDTO(
+                estoque.getId(), QUANTIDADE_PEDIDA, " Ana Souza ", "ana@exemplo.com", "  ", "");
     }
 
     private Pedido pedidoPendente() {
