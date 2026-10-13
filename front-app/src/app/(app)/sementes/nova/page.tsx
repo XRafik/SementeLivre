@@ -13,7 +13,7 @@ import { Toggle } from '@/components/ui/toggle';
 import { Button } from '@/components/ui/button';
 import { Sprout } from 'lucide-react';
 import { TipoProduto, TipoProdutoLabels, EspecieGeral, EspecieGeralLabels, FormatoProduto } from '@/types/seed';
-import { Pesagem, PesagemLabels, DisponibilidadeProduto, DisponibilidadeLabels, TipoMovimentacao } from '@/types/stock';
+import { Pesagem, PesagemLabels, DisponibilidadeProduto, DisponibilidadeLabels, TipoMovimentacao, TipoNegociavelLabels } from '@/types/stock';
 import styles from './nova.module.css';
 
 const tipoOptions = Object.entries(TipoProdutoLabels).map(([v, l]) => ({ value: v, label: l }));
@@ -39,6 +39,7 @@ export default function NovaSementePage() {
     tipo: TipoProduto.HORTALICA, especie: EspecieGeral.OUTRAS, formato: FormatoProduto.SEMENTE,
     quantidade: '', tipoPesagem: Pesagem.KG,
     disponibilidade: DisponibilidadeProduto.PARA_VENDA, preco: '', formaPrecificacao: '', descricao: '',
+    aceitaNegociacao: 'sim',
   });
 
   const set = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
@@ -87,6 +88,7 @@ export default function NovaSementePage() {
         quantidade: qty,
         tipoPesagem: form.tipoPesagem as Pesagem,
         disponibilidade: dispFinal,
+        aceitaNegociacao: form.aceitaNegociacao === 'sim',
         tipo: TipoMovimentacao.ENTRADA,
         dataMovimentacao: new Date(),
         dataUltimaAtualizacaoEstoque: new Date(),
@@ -104,6 +106,8 @@ export default function NovaSementePage() {
       setLoading(false);
     }
   };
+
+  const tipoNegociavel = TipoNegociavelLabels[form.disponibilidade as DisponibilidadeProduto];
 
   const showPreco = form.disponibilidade !== DisponibilidadeProduto.INDISPONIVEL && form.disponibilidade !== DisponibilidadeProduto.PARA_DOACAO;
 
@@ -178,6 +182,24 @@ export default function NovaSementePage() {
           </div>
         </div>
         <Select label="Disponibilidade" value={form.disponibilidade} onChange={(e) => set('disponibilidade', e.target.value)} options={dispOptions} required />
+        {tipoNegociavel && (
+          <div>
+            <Toggle
+              label="Negociação no site"
+              options={[
+                { value: 'sim', label: 'Aceito propostas' },
+                { value: 'nao', label: `Só ${tipoNegociavel}` },
+              ]}
+              value={form.aceitaNegociacao}
+              onChange={(v) => set('aceitaNegociacao', v)}
+            />
+            <p className={styles.hint}>
+              {form.aceitaNegociacao === 'sim'
+                ? 'Quem pede pelo site pode propor venda, troca ou doação.'
+                : `Quem pede pelo site só consegue fazer pedido de ${tipoNegociavel}.`}
+            </p>
+          </div>
+        )}
         {showPreco && (
           <>
             <Input label="Preço (R$)" value={form.preco} onChange={(e) => set('preco', e.target.value)} type="number" inputMode="decimal" min="0" step="0.01" placeholder="0,00" />

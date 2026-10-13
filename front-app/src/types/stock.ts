@@ -32,6 +32,16 @@ export const DisponibilidadeLabels: Record<DisponibilidadeProduto, string> = {
   [DisponibilidadeProduto.INDISPONIVEL]: 'Indisponível',
 };
 
+/**
+ * Tipo de pedido de cada disponibilidade que vai para o site. Só nelas faz
+ * sentido escolher se o comprador pode propor outro tipo (negociar).
+ */
+export const TipoNegociavelLabels: Partial<Record<DisponibilidadeProduto, string>> = {
+  [DisponibilidadeProduto.PARA_VENDA]: 'venda',
+  [DisponibilidadeProduto.PARA_TROCA]: 'troca',
+  [DisponibilidadeProduto.PARA_DOACAO]: 'doação',
+};
+
 export enum TipoMovimentacao {
   ENTRADA = 'ENTRADA',
   SAIDA_VENDA = 'SAIDA_VENDA',
@@ -62,6 +72,8 @@ export interface Estoque {
   quantidade: number;
   tipoPesagem: Pesagem;
   disponibilidade: DisponibilidadeProduto;
+  /** false: no site o comprador só pode pedir o tipo da disponibilidade. Ausente = aceita. */
+  aceitaNegociacao?: boolean;
   tipo: TipoMovimentacao;
   dataMovimentacao: Date;
   dataUltimaAtualizacaoEstoque: Date;
