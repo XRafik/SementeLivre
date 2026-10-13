@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +21,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.sementelivre.backend.dto.CompradorDTO;
 import com.sementelivre.backend.dto.ItemPedidoRequestDTO;
@@ -64,6 +66,9 @@ class PedidoServiceTest {
     @Mock
     private NotificacaoService notificacaoService;
 
+    @Mock
+    private ApplicationEventPublisher eventos;
+
     private PedidoService pedidoService;
 
     private UUID pedidoId;
@@ -86,7 +91,8 @@ class PedidoServiceTest {
                 produtoRepository,
                 estoqueRepository,
                 usuarioRepository,
-                notificacaoService
+                notificacaoService,
+                eventos
         );
 
         pedidoId = UUID.randomUUID();
@@ -174,6 +180,17 @@ class PedidoServiceTest {
         assertNull(resposta.comprador());
     }
 
+    @Test
+    void devePublicarCopiaDoPedidoParaOEmailDoSolicitante() {
+        mockUsuarioEProdutoExistentes();
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        pedidoService.criar(requestComQuantidade(QUANTIDADE_PEDIDA));
+
+        assertEquals("joao@exemplo.com", copiaPublicada().para());
+    }
+
     // CRIAR PELO SITE PÚBLICO
 
     @Test
@@ -205,6 +222,20 @@ class PedidoServiceTest {
     }
 
     @Test
+    void devePublicarCopiaDoPedidoPublicoParaOEmailInformado() {
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        pedidoService.criarPublico(requestPublico());
+
+        CopiaDoPedidoEmail copia = copiaPublicada();
+        assertEquals("ana@exemplo.com", copia.para());
+        assertTrue(copia.texto().contains("Olá, Ana Souza!"), copia.texto());
+        assertTrue(copia.texto().contains("4 x Milho crioulo"), copia.texto());
+    }
+
+    @Test
     void naoDeveCriarPedidoPublicoParaOfertaForaDoCatalogo() {
         estoque.setDisponibilidade(Disponibilidade.A_NEGOCIAR);
         when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
@@ -213,6 +244,7 @@ class PedidoServiceTest {
                 () -> pedidoService.criarPublico(requestPublico()));
 
         verify(pedidoRepository, never()).save(any(Pedido.class));
+        verify(eventos, never()).publishEvent(any(Object.class));
     }
 
     @Test
@@ -234,6 +266,7 @@ class PedidoServiceTest {
         assertThrows(EstoqueInsuficienteException.class, () -> pedidoService.criarPublico(dto));
 
         verify(pedidoRepository, never()).save(any(Pedido.class));
+        verify(eventos, never()).publishEvent(any(Object.class));
     }
 
     @Test
@@ -684,6 +717,12 @@ class PedidoServiceTest {
                 estoque.getId(), QUANTIDADE_PEDIDA, " Ana Souza ", "ana@exemplo.com", "  ", "");
     }
 
+    private CopiaDoPedidoEmail copiaPublicada() {
+        ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
+        verify(eventos).publishEvent(evento.capture());
+        return (CopiaDoPedidoEmail) evento.getValue();
+    }
+
     private Pedido pedidoPendente() {
         return pedidoComStatus(StatusPedido.PENDENTE);
     }
@@ -736,6 +775,10 @@ class PedidoServiceTest {
                     Pedido salvo = invocation.getArgument(0);
                     if (salvo.getId() == null) {
                         salvo.setId(pedidoId);
+                    }
+                    // O JPA roda o @PrePersist no save; o mock não
+                    if (salvo.getDataPedido() == null) {
+                        salvo.prePersist();
                     }
                     return salvo;
                 });
