@@ -54,7 +54,7 @@ traces/vídeos de falha e o log do backend como artefatos.
 | Auth | `tests/app/auth.spec.ts` | cadastro (sucesso, validação, e-mail duplicado), login (sucesso, senha errada, campos vazios), logout |
 | Sessão / offline | `tests/app/sessao.spec.ts` | rota protegida, sessão após reload, token inválido, refresh silencioso, backend fora do ar na abertura e durante o uso, login sem conexão |
 | Pedido | `tests/app/pedido.spec.ts` | registrar (reserva estoque), confirmar, cancelar (devolve estoque), validações, quantidade acima do estoque, pedido inexistente |
-| Relatório | `tests/app/relatorio.spec.ts` | estoque e pedidos: prévia, histórico no backend, download de PDF (`%PDF-`) e CSV (conteúdo conferido), exportação desabilitada sem dados |
+| Relatório | `tests/app/relatorio.spec.ts` | estoque e pedidos: prévia, histórico no backend, download de PDF (`%PDF-`) e CSV (conteúdo conferido), exportação desabilitada sem dados, relatório gerado antes da lista carregar (**fixme**, ver abaixo) |
 | Notificação | `tests/app/notificacao.spec.ts` | pedido gera notificação não lida, contador no sino, abrir leva ao pedido, marcar todas como lidas |
 | Produto | `tests/app/produto.spec.ts` | cadastro com upload de foto e estoque inicial, validações |
 | Propriedade / comunidade | `tests/app/propriedade.spec.ts` | cadastro em comunidade existente, solicitar nova comunidade, validações (**fixme**, ver abaixo) |
@@ -63,16 +63,23 @@ traces/vídeos de falha e o log do backend como artefatos.
 
 ## Resultado da primeira execução e ajustes para a Fase 4
 
-Primeira execução local: **39 passaram, 3 marcados como fixme** (propriedade/comunidade).
+Primeira execução local: **39 passaram, 4 marcados como fixme** (propriedade/comunidade e a corrida do histórico de relatórios).
 
 1. **Propriedades e comunidades não chegam ao backend.** O front-app grava as duas só no
    `localStorage` (`lib/db.ts`), então a comunidade do seeder nunca aparece e outra sessão não vê a
    propriedade. O backend também só aceitava `logradouroId`, sem endpoint para criar o endereço.
-   Corrigido em um PR separado; ao entrar no `developer`, remover o `test.fixme` de
-   `propriedade.spec.ts`.
+   Corrigido no **PR #161**; ao entrar no `developer`, remover o `test.fixme` de
+   `propriedade.spec.ts` (rodando contra o branch do #161 os 3 testes passam).
 2. **PDF/CSV do front-app são gerados no navegador** (`lib/pdf.ts` e Blob). Os endpoints
    `/relatorios/{estoque,pedidos}/{pdf,csv}` do backend não são usados por nenhuma tela; os testes
    validam o arquivo que o usuário de fato baixa. Na Fase 4, decidir se a exportação passa a usar
    o backend (uma fonte só para os números) ou se esses endpoints saem.
-3. **Rate limit do pedido público** (10 pedidos por IP a cada 10 min) derruba suítes que fazem
+3. **Relatório some do histórico** quando é gerado antes da lista inicial de `/relatorios` chegar
+   (corrida em `useRelatorios`; aparecia como falha intermitente). Corrigido no **PR #162**; o
+   teste que reproduz a corrida fica em `fixme` até ele entrar.
+4. **`GET /relatorios` e `GET /estoques` devolvem os registros de todos os proprietários**: o
+   front-app filtra no navegador pelo `proprietarioId` (ver comentários em `lib/relatorioApi.ts` e
+   `lib/catalogoApi.ts`). Na Fase 4, restringir no backend como foi feito com os
+   dados pessoais no #98.
+5. **Rate limit do pedido público** (10 pedidos por IP a cada 10 min) derruba suítes que fazem
    muitos pedidos; o CI sobe o backend com `PEDIDO_PUBLICO_LIMITE_POR_IP`/`POR_EMAIL` altos.

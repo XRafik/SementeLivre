@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { test, expect, toast } from '../../support/fixtures';
-import { criarOferta } from '../../support/api';
+import { API_URL, criarOferta } from '../../support/api';
 import { registrarPedido } from '../../support/fluxos';
 
 /** CDU de relatório: gera a prévia, registra a emissão no backend e exporta PDF/CSV. */
@@ -57,5 +57,25 @@ test.describe('Relatórios (front-app)', () => {
     await expect(page.getByText('Sem dados')).toBeVisible();
     await expect(page.getByRole('button', { name: '⬇ PDF' })).toBeDisabled();
     await expect(page.getByRole('button', { name: '⬇ CSV' })).toBeDisabled();
+  });
+
+  test('relatório gerado antes da lista carregar continua no histórico', async ({ appLogado: page }) => {
+    test.fixme(true, 'Corrida no useRelatorios corrigida no PR #162; remova o fixme quando ele entrar no developer');
+    // Segura a resposta da lista inicial até depois da emissão (o dado continua vindo do backend)
+    let liberar: () => void = () => {};
+    const segurando = new Promise<void>((resolve) => (liberar = resolve));
+    await page.route(`${API_URL}/relatorios`, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      const resposta = await route.fetch();
+      await segurando;
+      await route.fulfill({ response: resposta });
+    });
+
+    await page.goto('/relatorios');
+    await page.getByRole('button', { name: 'Gerar Relatório' }).click();
+    await expect(toast(page, 'Relatório gerado e registrado!')).toBeVisible();
+    liberar();
+
+    await expect(page.getByRole('table', { name: 'Histórico de relatórios emitidos' }).getByText('Estoque de sementes')).toBeVisible();
   });
 });
