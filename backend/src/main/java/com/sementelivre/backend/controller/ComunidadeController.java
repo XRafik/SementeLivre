@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-@RestController
-@RequestMapping("/api/comunidades")
 // Proprietário só solicita comunidade (POST, nasce PENDENTE_APROVACAO) e consulta;
 // editar, excluir, aprovar e rejeitar são do admin.
+@RestController
+@RequestMapping("/api/comunidades")
 public class ComunidadeController {
 
     private final ComunidadeService comunidadeService;
