@@ -1,0 +1,140 @@
+name: CI - Testes E2E web
+
+# Sobe Postgres + backend real + front-app + front-site e navega pelas telas com Playwright.
+# Nenhum dado é mockado: cada teste cria o que precisa pela API do backend.
+
+on:
+  push:
+    branches: [ main, developer ]
+    paths:
+      - 'backend/**'
+      - 'front-app/**'
+      - 'front-site/**'
+      - 'e2e/**'
+      - '.github/workflows/e2e.yml'
+  pull_request:
+    branches: [ main, developer ]
+    paths:
+      - 'backend/**'
+      - 'front-app/**'
+      - 'front-site/**'
+      - 'e2e/**'
+      - '.github/workflows/e2e.yml'
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: Playwright (front-app + front-site + backend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: devuser
+          POSTGRES_PASSWORD: devpassword
+          POSTGRES_DB: e2edb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U devuser -d e2edb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      CI: true
+      API_URL: http://localhost:8080
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      BACKEND_URL: http://localhost:8080
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            front-app/package-lock.json
+            front-site/package-lock.json
+            e2e/package-lock.json
+
+      - name: Build do backend (sem testes; eles rodam no ci.yml)
+        working-directory: backend
+        run: ./mvnw --batch-mode -DskipTests package
+
+      - name: Subir o backend
+        working-directory: backend
+        env:
+          SPRING_PROFILES_ACTIVE: dev
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/e2edb
+          SPRING_DATASOURCE_USERNAME: devuser
+          SPRING_DATASOURCE_PASSWORD: devpassword
+          # Os testes fazem vários pedidos públicos do mesmo IP
+          PEDIDO_PUBLICO_LIMITE_POR_IP: '1000'
+          PEDIDO_PUBLICO_LIMITE_POR_EMAIL: '1000'
+        run: |
+          nohup java -jar target/backend-*.jar \
+            --logging.level.org.springframework.security=INFO \
+            --spring.jpa.show-sql=false > backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/actuator/health > /dev/null && exit 0
+            sleep 2
+          done
+          cat backend.log
+          exit 1
+
+      - name: Dependências e build do front-app
+        working-directory: front-app
+        run: |
+          npm ci
+          npm run build
+
+      - name: Dependências e build do front-site
+        working-directory: front-site
+        run: |
+          npm ci
+          npm run build
+
+      - name: Dependências do e2e e Chromium
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Type-check da suíte
+        working-directory: e2e
+        run: npm run typecheck
+
+      - name: Rodar testes E2E
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Publicar relatório do Playwright (mesmo se falhar)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-e2e
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 14
+
+      - name: Publicar log do backend (mesmo se falhar)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-log-e2e
+          path: backend/backend.log
+          retention-days: 14
