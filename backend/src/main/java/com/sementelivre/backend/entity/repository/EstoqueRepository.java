@@ -31,6 +31,16 @@ public interface EstoqueRepository extends JpaRepository<Estoque, UUID> {
             @Param("proprietarioId") UUID proprietarioId,
             @Param("produtoId") UUID produtoId);
 
+    /**
+     * Mesmo lock, buscando pelo id da oferta (pedido do site público). A
+     * primeira leitura precisa já travar: se o estoque fosse lido antes sem
+     * lock, o Hibernate devolveria essa cópia antiga no findParaAtualizacao e
+     * pedidos simultâneos baixariam do mesmo saldo.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select e from Estoque e where e.id = :id")
+    Optional<Estoque> findPorIdParaAtualizacao(@Param("id") UUID id);
+
     @Query("""
             select e from Estoque e
             where e.proprietario.id = :proprietarioId

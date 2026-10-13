@@ -1,27 +1,20 @@
-import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
-import { db } from "@/lib/store";
+import { BACKEND_URL, backendIndisponivel, repassar } from "@/lib/backend";
 
-const sleep = () => new Promise((r) => setTimeout(r, 400));
-
+// Registra o pedido no backend, que também envia a cópia por e-mail.
 export async function POST(request: Request) {
-  await sleep();
-  const body = await request.json();
-
-  const pedido = {
-    id_pedido: randomUUID(),
-    id_especie: String(body.id_especie ?? ""),
-    id_comunidade: String(body.id_comunidade ?? ""),
-    tipoPedido: body.tipoPedido,
-    status: "PENDENTE" as const,
-    nomeRecebedor: String(body.nomeRecebedor ?? ""),
-    contatoRecebedor: String(body.contatoRecebedor ?? ""),
-    mensagemOpcional: String(body.mensagemOpcional ?? ""),
-    quantidade: Number(body.quantidade ?? 1),
-    dataPedido: new Date().toISOString(),
-  };
-
-  db.pedidos.push(pedido);
-
-  return NextResponse.json(pedido, { status: 201 });
+  const body = await request.text();
+  // O backend limita pedidos por IP; sem repassar, todo visitante teria o IP deste servidor
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const ipDoVisitante = request.headers.get("x-forwarded-for");
+  if (ipDoVisitante) headers["X-Forwarded-For"] = ipDoVisitante;
+  try {
+    const res = await fetch(`${BACKEND_URL}/catalogo/pedidos`, {
+      method: "POST",
+      headers,
+      body,
+    });
+    return repassar(res);
+  } catch {
+    return backendIndisponivel();
+  }
 }
