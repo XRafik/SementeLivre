@@ -1,5 +1,6 @@
 package com.sementelivre.backend.exception;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.NoSuchElementException;
 
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -99,6 +101,45 @@ public class GlobalExceptionHandler {
             status.value(),
             request.getRequestURI(),
             List.of("senhaAtual: " + e.getMessage())
+        );
+        return ResponseEntity.status(status).body(err);
+    }
+
+    //trata erro 429 - pedido do site público acima do limite (por IP ou por e-mail de destino)
+    @ExceptionHandler(LimiteDePedidosExcedidoException.class)
+    public ResponseEntity<ErrorResponse> handleLimiteDePedidos(LimiteDePedidosExcedidoException e, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.TOO_MANY_REQUESTS;
+
+        ErrorResponse err = new ErrorResponse(
+            "Too Many Requests",
+            e.getMessage(),
+            Instant.now(),
+            status.value(),
+            request.getRequestURI(),
+            null
+        );
+        return ResponseEntity.status(status)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(segundosArredondadosParaCima(e.getTentarDeNovoEm())))
+                .body(err);
+    }
+
+    // Retry-After arredonda para cima: voltar antes da vaga abrir daria outro 429
+    private static long segundosArredondadosParaCima(Duration espera) {
+        return Math.max(1, espera.toSeconds() + (espera.toNanosPart() > 0 ? 1 : 0));
+    }
+
+    //trata erro 422 - pedido do site com tipo diferente da oferta, que o produtor não deixou negociar
+    @ExceptionHandler(NegociacaoNaoPermitidaException.class)
+    public ResponseEntity<ErrorResponse> handleNegociacaoNaoPermitida(NegociacaoNaoPermitidaException e, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.UNPROCESSABLE_ENTITY;
+
+        ErrorResponse err = new ErrorResponse(
+            "Negotiation Not Allowed",
+            e.getMessage(),
+            Instant.now(),
+            status.value(),
+            request.getRequestURI(),
+            null
         );
         return ResponseEntity.status(status).body(err);
     }

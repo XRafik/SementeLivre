@@ -10,19 +10,24 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.sementelivre.backend.dto.CompradorDTO;
 import com.sementelivre.backend.dto.ItemPedidoRequestDTO;
 import com.sementelivre.backend.dto.PedidoFiltroDTO;
+import com.sementelivre.backend.dto.PedidoPublicoRequestDTO;
+import com.sementelivre.backend.dto.PedidoPublicoResponseDTO;
 import com.sementelivre.backend.dto.PedidoRequestDTO;
 import com.sementelivre.backend.dto.PedidoResponseDTO;
 import com.sementelivre.backend.dto.PedidoUpdateDTO;
@@ -39,6 +44,7 @@ import com.sementelivre.backend.entity.repository.EstoqueRepository;
 import com.sementelivre.backend.entity.repository.PedidoRepository;
 import com.sementelivre.backend.entity.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.EstoqueInsuficienteException;
+import com.sementelivre.backend.exception.NegociacaoNaoPermitidaException;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 import com.sementelivre.backend.exception.TransicaoStatusInvalidaException;
 import com.sementelivre.backend.repository.UsuarioRepository;
@@ -60,6 +66,9 @@ class PedidoServiceTest {
 
     @Mock
     private NotificacaoService notificacaoService;
+
+    @Mock
+    private ApplicationEventPublisher eventos;
 
     private PedidoService pedidoService;
 
@@ -83,7 +92,8 @@ class PedidoServiceTest {
                 produtoRepository,
                 estoqueRepository,
                 usuarioRepository,
-                notificacaoService
+                notificacaoService,
+                eventos
         );
 
         pedidoId = UUID.randomUUID();
@@ -169,6 +179,152 @@ class PedidoServiceTest {
         PedidoResponseDTO resposta = pedidoService.criar(requestComQuantidade(QUANTIDADE_PEDIDA));
 
         assertNull(resposta.comprador());
+    }
+
+    @Test
+    void devePublicarCopiaDoPedidoParaOEmailDoSolicitante() {
+        mockUsuarioEProdutoExistentes();
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        pedidoService.criar(requestComQuantidade(QUANTIDADE_PEDIDA));
+
+        assertEquals("joao@exemplo.com", copiaPublicada().para());
+    }
+
+    // CRIAR PELO SITE PÚBLICO
+
+    @Test
+    void deveCriarPedidoPublicoComDadosDaOfertaESemSolicitante() {
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        PedidoPublicoResponseDTO resposta = pedidoService.criarPublico(requestPublico());
+
+        ArgumentCaptor<Pedido> salvo = ArgumentCaptor.forClass(Pedido.class);
+        verify(pedidoRepository).save(salvo.capture());
+        Pedido pedido = salvo.getValue();
+
+        assertNull(pedido.getUsuarioSolicitante());
+        assertEquals(proprietario, pedido.getProprietarioRecebedor());
+        // PARA_VENDA vira VENDA; preço vem do estoque, não do navegador
+        assertEquals(TipoPedido.VENDA, pedido.getTipoPedido());
+        assertEquals(15.0, pedido.getItens().get(0).getPrecoUnitario());
+        assertEquals("Ana Souza", pedido.getComprador().getNome());
+        assertEquals("ana@exemplo.com", pedido.getComprador().getEmail());
+        assertNull(pedido.getComprador().getTelefone());
+        assertNull(pedido.getMensagemOpcional());
+
+        assertEquals(StatusPedido.PENDENTE, resposta.status());
+        assertEquals("Milho crioulo", resposta.produto());
+        assertEquals(ESTOQUE_INICIAL - QUANTIDADE_PEDIDA, estoque.getQuantidade());
+        verify(notificacaoService).criarParaPedidoRegistrado(pedido);
+    }
+
+    @Test
+    void devePublicarCopiaDoPedidoPublicoParaOEmailInformado() {
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        pedidoService.criarPublico(requestPublico());
+
+        CopiaDoPedidoEmail copia = copiaPublicada();
+        assertEquals("ana@exemplo.com", copia.para());
+        assertTrue(copia.texto().contains("Olá, Ana Souza!"), copia.texto());
+        assertTrue(copia.texto().contains("4 x Milho crioulo"), copia.texto());
+    }
+
+    // NEGOCIAÇÃO DO TIPO NO PEDIDO PÚBLICO
+
+    @Test
+    void ofertaQueAceitaNegociarDeixaProporOutroTipoSemPreco() {
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        PedidoPublicoResponseDTO resposta = pedidoService.criarPublico(requestPublicoComTipo(TipoPedido.TROCA));
+
+        Pedido pedido = pedidoSalvo();
+        assertEquals(TipoPedido.TROCA, resposta.tipoPedido());
+        assertEquals(TipoPedido.TROCA, pedido.getTipoPedido());
+        // o preço da oferta é de venda: numa troca proposta não há total
+        assertNull(pedido.getItens().get(0).getPrecoUnitario());
+    }
+
+    @Test
+    void ofertaQueNaoAceitaNegociarRecusaOutroTipo() {
+        estoque.setAceitaNegociacao(false);
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+
+        NegociacaoNaoPermitidaException erro = assertThrows(NegociacaoNaoPermitidaException.class,
+                () -> pedidoService.criarPublico(requestPublicoComTipo(TipoPedido.DOACAO)));
+
+        assertEquals("O produtor não aceita negociar esta oferta: o pedido precisa ser de venda.", erro.getMessage());
+        assertEquals(ESTOQUE_INICIAL, estoque.getQuantidade());
+        verify(pedidoRepository, never()).save(any(Pedido.class));
+    }
+
+    @Test
+    void ofertaQueNaoAceitaNegociarAceitaOProprioTipo() {
+        estoque.setAceitaNegociacao(false);
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        PedidoPublicoResponseDTO resposta = pedidoService.criarPublico(requestPublicoComTipo(TipoPedido.VENDA));
+
+        assertEquals(TipoPedido.VENDA, resposta.tipoPedido());
+        assertEquals(15.0, pedidoSalvo().getItens().get(0).getPrecoUnitario());
+    }
+
+    @Test
+    void semTipoInformadoValeODaOfertaMesmoSemNegociacao() {
+        estoque.setAceitaNegociacao(false);
+        estoque.setDisponibilidade(Disponibilidade.PARA_DOACAO);
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        PedidoPublicoResponseDTO resposta = pedidoService.criarPublico(requestPublico());
+
+        assertEquals(TipoPedido.DOACAO, resposta.tipoPedido());
+        assertNull(pedidoSalvo().getItens().get(0).getPrecoUnitario());
+    }
+
+    @Test
+    void naoDeveCriarPedidoPublicoParaOfertaForaDoCatalogo() {
+        estoque.setDisponibilidade(Disponibilidade.A_NEGOCIAR);
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+
+        assertThrows(RecursoNaoEncontradoException.class,
+                () -> pedidoService.criarPublico(requestPublico()));
+
+        verify(pedidoRepository, never()).save(any(Pedido.class));
+        verify(eventos, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void naoDeveCriarPedidoPublicoParaOfertaInexistente() {
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.empty());
+
+        assertThrows(RecursoNaoEncontradoException.class,
+                () -> pedidoService.criarPublico(requestPublico()));
+    }
+
+    @Test
+    void naoDeveCriarPedidoPublicoQuandoQuantidadeMaiorQueEstoque() {
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+
+        PedidoPublicoRequestDTO dto = new PedidoPublicoRequestDTO(
+                estoque.getId(), ESTOQUE_INICIAL + 1, "Ana Souza", "ana@exemplo.com", null, null);
+
+        assertThrows(EstoqueInsuficienteException.class, () -> pedidoService.criarPublico(dto));
+
+        verify(pedidoRepository, never()).save(any(Pedido.class));
+        verify(eventos, never()).publishEvent(any(Object.class));
     }
 
     @Test
@@ -614,6 +770,28 @@ class PedidoServiceTest {
         );
     }
 
+    private PedidoPublicoRequestDTO requestPublicoComTipo(TipoPedido tipo) {
+        return new PedidoPublicoRequestDTO(
+                estoque.getId(), QUANTIDADE_PEDIDA, "Ana Souza", "ana@exemplo.com", null, null, tipo);
+    }
+
+    private Pedido pedidoSalvo() {
+        ArgumentCaptor<Pedido> salvo = ArgumentCaptor.forClass(Pedido.class);
+        verify(pedidoRepository).save(salvo.capture());
+        return salvo.getValue();
+    }
+
+    private PedidoPublicoRequestDTO requestPublico() {
+        return new PedidoPublicoRequestDTO(
+                estoque.getId(), QUANTIDADE_PEDIDA, " Ana Souza ", "ana@exemplo.com", "  ", "");
+    }
+
+    private CopiaDoPedidoEmail copiaPublicada() {
+        ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
+        verify(eventos).publishEvent(evento.capture());
+        return (CopiaDoPedidoEmail) evento.getValue();
+    }
+
     private Pedido pedidoPendente() {
         return pedidoComStatus(StatusPedido.PENDENTE);
     }
@@ -666,6 +844,10 @@ class PedidoServiceTest {
                     Pedido salvo = invocation.getArgument(0);
                     if (salvo.getId() == null) {
                         salvo.setId(pedidoId);
+                    }
+                    // O JPA roda o @PrePersist no save; o mock não
+                    if (salvo.getDataPedido() == null) {
+                        salvo.prePersist();
                     }
                     return salvo;
                 });

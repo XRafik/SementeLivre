@@ -75,17 +75,15 @@ public class NotificacaoService
 
         entityManager.flush();
 
-        // Destinatário é quem PEDIU, não quem confirmou: quem confirma é o dono
-        // do estoque e já está na tela vendo o resultado da própria ação.
-        // Notificar essa pessoa do seu próprio clique não informa nada.
-        Proprietario solicitante = buscarProprietario(pedido.getUsuarioSolicitante().getId());
+        String mensagem = montarMensagemDoPedido(pedido, evento);
+        if (complemento != null) {
+            mensagem += " " + complemento;
+        }
 
-        return gravarParaPedido(
-                pedido,
-                solicitante,
-                "Pedido confirmado",
-                montarMensagemDoPedido(pedido, "confirmado")
-        );
+        Proprietario proprietarioGerenciado = entityManager.getReference(
+            Proprietario.class, pedido.getProprietarioRecebedor().getId());
+
+        return gravarParaPedido(pedido, proprietarioGerenciado, titulo, mensagem);
     }
 
     /**
@@ -134,15 +132,10 @@ public class NotificacaoService
 
         Pedido pedidoGerenciado = entityManager.getReference(Pedido.class, pedido.getId());
 
-        String mensagem = montarMensagemDoPedido(pedido, evento);
-        if (complemento != null) {
-            mensagem += " " + complemento;
-        }
-
         Notificacao notificacao = Notificacao.builder()
             .titulo(titulo)
             .mensagem(mensagem)
-            .proprietario(proprietarioGerenciado)
+            .proprietario(destinatario)
             .pedidoRelacionado(pedidoGerenciado)
             .build();
 
@@ -247,6 +240,11 @@ public class NotificacaoService
                 .stream()
                 .map(this::toResponseDTO)
                 .toList();
+    }
+
+    // Quantas ainda não foram lidas, para o badge do cabeçalho.
+    public long contarNaoLidas() {
+        return notificacaoRepository.countByProprietarioIdAndLidaFalse(usuarioAtualId());
     }
 
     // UPDATE

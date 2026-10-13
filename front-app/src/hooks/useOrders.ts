@@ -21,7 +21,7 @@ interface PedidoApi {
     quantidade: number;
     precoUnitario: number | null;
   }[];
-  comprador: { nome: string; telefone: string | null } | null;
+  comprador: { nome: string; telefone: string | null; email?: string | null } | null;
 }
 
 function toPedido(api: PedidoApi): Pedido {
@@ -43,7 +43,8 @@ function toPedido(api: PedidoApi): Pedido {
     tipoPedido: api.tipoPedido,
     status: api.status,
     nomeRecebedor: api.comprador?.nome ?? 'Comprador não informado',
-    contatoRecebedor: api.comprador?.telefone ?? undefined,
+    // Pedido do site pode ter só e-mail, só telefone ou os dois
+    contatoRecebedor: [api.comprador?.telefone, api.comprador?.email].filter(Boolean).join(' · ') || undefined,
     mensagemOpcional: api.mensagemOpcional ?? undefined,
     // LocalDateTime chega sem fuso; o navegador interpreta como horário local
     dataPedido: new Date(api.dataPedido),

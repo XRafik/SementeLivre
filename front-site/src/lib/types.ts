@@ -1,116 +1,72 @@
-export interface Proprietario {
-  nome: string;
-  telefone: string;
-  cpf: string;
-}
+// Espelham os DTOs do catálogo público do backend (/catalogo/produtos, /catalogo/pedidos).
 
-export interface Property {
-  id_propriedade: string;
-  nome: string;
-  endereco: string;
-  area_total: number;
-}
-
-export interface Plantio {
-  id_plantio: string;
-  id_propriedade: string;
-  id_especie: string;
-  data_inicio: string;
-  previsao_colheita: string;
-  area_plantada: number;
-  talhao: string;
-  status: "ativo" | "concluido" | "cancelado";
-}
-
-export type SpeciesStatus = "exchange" | "sale" | "donation" | "unavailable";
-
-export interface Species {
-  id_especie: string;
-  nome_popular: string;
-  nome_cientifico: string;
-  familia_botanica: string;
-  descricao: string;
-  foto: string;
-  status: SpeciesStatus;
-  id_comunidade?: string;
-  tipoSemente?: TipoSemente;
-  quantidadeEstoque?: number;
-  pesoEstoque?: number;
-  preco?: number;
-  formaPrecificacao?: string;
-  unidadePesagem?: UnidadePesagem;
-}
-
-export interface Estoque {
-  id_estoque: string;
-  id_especie: string;
-  quantidade: number;
-}
-
-export interface Colheita {
-  id_colheita: string;
-  id_especie: string;
-  data: string;
-  quantidade: number;
-}
-
-// ── Multi-community types ──────────────────────────────────────────────────
-
-export interface Comunidade {
-  id_comunidade: string;
-  nome: string;
-  localizacao: string;
-  status: "ativa" | "inativa";
-}
-
-export type StatusSolicitacao = "pendente" | "aprovada" | "rejeitada";
-
-export interface SolicitacaoCadastro {
-  id_solicitacao: string;
-  nome_responsavel: string;
-  email: string;
-  senha: string;
-  nome_comunidade: string;
-  localizacao: string;
-  documento_nome: string;
-  documento_base64: string;
-  status: StatusSolicitacao;
-  data_solicitacao: string;
-  observacao: string;
-}
-
-export interface ContaProdutor {
-  id_conta: string;
-  email: string;
-  senha: string;
-  nome: string;
-  id_comunidade: string;
-}
-
-export type TipoSemente = "HORTALICA" | "FRUTIFERA" | "FORRAGEIRA" | "CEREAL" | "LEGUMINOSA" | "OUTRAS";
-export type UnidadePesagem = "SACA" | "KG" | "GRAMA" | "MG" | "UNIDADE";
+export type Disponibilidade = "PARA_VENDA" | "PARA_TROCA" | "PARA_DOACAO";
+export type TipoProduto =
+  | "HORTALICA"
+  | "FRUTIFERA"
+  | "FORRAGEIRA"
+  | "CEREAL"
+  | "LEGUMINOSA"
+  | "VERDURA"
+  | "MEDICINAL"
+  | "OUTRAS";
+export type Pesagem = "SACA" | "KG" | "GRAMA" | "MG" | "UNIDADE";
 export type TipoPedido = "VENDA" | "TROCA" | "DOACAO";
-export type StatusPedido = "PENDENTE" | "CONFIRMADO" | "CANCELADO";
 
-export interface Pedido {
-  id_pedido: string;
-  id_especie: string;
-  id_comunidade: string;
-  tipoPedido: TipoPedido;
-  status: StatusPedido;
-  nomeRecebedor: string;
-  contatoRecebedor: string;
-  mensagemOpcional: string;
-  quantidade: number;
-  dataPedido: string;
+/** Uma oferta do catálogo: um produto no estoque de um produtor. */
+export interface OfertaCatalogo {
+  id: string; // id do produto
+  nomePopular: string;
+  nomeCientifico: string | null;
+  historico: string | null;
+  urlFoto: string | null;
+  tipo: TipoProduto | null;
+  familiaBotanica: string | null;
+  estoqueId: string;
+  descricao: string | null;
+  preco: number | null;
+  quantidade: number | null;
+  tipoPesagem: Pesagem | null;
+  disponibilidade: Disponibilidade;
+  /** false: o produtor só aceita o tipo da disponibilidade (venda, troca ou doação). */
+  aceitaNegociacao: boolean;
+  comunidadeId: string | null;
+  comunidade: string | null;
+  municipio: string | null;
+  uf: string | null;
 }
 
-export interface Notificacao {
-  id_notificacao: string;
-  id_comunidade: string;
-  id_pedido: string;
-  titulo: string;
-  mensagem: string;
-  lida: boolean;
-  dataGeracao: string;
+export interface Oferta {
+  estoqueId: string;
+  descricao: string | null;
+  preco: number | null;
+  quantidade: number | null;
+  tipoPesagem: Pesagem | null;
+  disponibilidade: Disponibilidade;
+  aceitaNegociacao: boolean;
+}
+
+export interface ProdutoDetalhe {
+  id: string;
+  nomePopular: string;
+  nomeCientifico: string | null;
+  historico: string | null;
+  urlFoto: string | null;
+  tipo: TipoProduto | null;
+  familiaBotanica: string | null;
+  comunidadeId: string | null;
+  comunidade: string | null;
+  municipio: string | null;
+  uf: string | null;
+  ofertas: Oferta[];
+}
+
+export interface PedidoPublicoRequest {
+  estoqueId: string;
+  quantidade: number;
+  nome: string;
+  email: string;
+  telefone: string;
+  mensagemOpcional: string;
+  tipoPedido: TipoPedido;
 }

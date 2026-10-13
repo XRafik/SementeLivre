@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +21,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.sementelivre.backend.dto.NotificacaoRequestDTO;
 import com.sementelivre.backend.dto.NotificacaoResponseDTO;
@@ -82,6 +85,19 @@ class NotificacaoServiceTest {
         );
     }
 
+    @AfterEach
+    void limparAutenticacao() {
+        SecurityContextHolder.clearContext();
+    }
+
+    // Leitura, edição e exclusão só valem para o dono da notificação.
+    private void autenticarComoDono() {
+        Usuario dono = new Usuario();
+        dono.setId(proprietarioId);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(dono, null, List.of()));
+    }
+
     @Test
     void deveCriarNotificacao() {
         when(entityManager.find(Proprietario.class, proprietarioId)).thenReturn(proprietario);
@@ -107,6 +123,7 @@ class NotificacaoServiceTest {
 
     @Test
     void deveBuscarNotificacaoPorId() {
+        autenticarComoDono();
         when(notificacaoRepository.findById(notificacaoId)).thenReturn(Optional.of(notificacao));
 
         NotificacaoResponseDTO resposta = notificacaoService.buscarPorId(notificacaoId);
@@ -124,7 +141,9 @@ class NotificacaoServiceTest {
 
     @Test
     void deveListarNotificacoes() {
-        when(notificacaoRepository.findAll()).thenReturn(List.of(notificacao));
+        autenticarComoDono();
+        when(notificacaoRepository.findByProprietarioIdOrderByDataGeracaoDesc(proprietarioId))
+                .thenReturn(List.of(notificacao));
 
         List<NotificacaoResponseDTO> resposta = notificacaoService.listar();
 
@@ -140,8 +159,8 @@ class NotificacaoServiceTest {
                 null
         );
 
+        autenticarComoDono();
         when(notificacaoRepository.findById(notificacaoId)).thenReturn(Optional.of(notificacao));
-        when(entityManager.find(Proprietario.class, proprietarioId)).thenReturn(proprietario);
         when(notificacaoRepository.save(notificacao)).thenReturn(notificacao);
 
         NotificacaoResponseDTO resposta = notificacaoService.atualizar(notificacaoId, novosDados);
@@ -152,6 +171,7 @@ class NotificacaoServiceTest {
 
     @Test
     void deveMarcarNotificacaoComoLida() {
+        autenticarComoDono();
         when(notificacaoRepository.findById(notificacaoId)).thenReturn(Optional.of(notificacao));
         when(notificacaoRepository.save(notificacao)).thenReturn(notificacao);
 
@@ -163,6 +183,7 @@ class NotificacaoServiceTest {
 
     @Test
     void deveDeletarNotificacao() {
+        autenticarComoDono();
         when(notificacaoRepository.findById(notificacaoId)).thenReturn(Optional.of(notificacao));
 
         notificacaoService.deletar(notificacaoId);

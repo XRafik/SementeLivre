@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,8 @@ import com.sementelivre.backend.dto.CompradorDTO;
 import com.sementelivre.backend.dto.ItemPedidoRequestDTO;
 import com.sementelivre.backend.dto.ItemPedidoResponseDTO;
 import com.sementelivre.backend.dto.PedidoFiltroDTO;
+import com.sementelivre.backend.dto.PedidoPublicoRequestDTO;
+import com.sementelivre.backend.dto.PedidoPublicoResponseDTO;
 import com.sementelivre.backend.dto.PedidoRequestDTO;
 import com.sementelivre.backend.dto.PedidoResponseDTO;
 import com.sementelivre.backend.dto.PedidoUpdateDTO;
@@ -28,10 +31,12 @@ import com.sementelivre.backend.entity.Proprietario;
 import com.sementelivre.backend.entity.Usuario;
 import com.sementelivre.backend.entity.enums.Disponibilidade;
 import com.sementelivre.backend.entity.enums.StatusPedido;
+import com.sementelivre.backend.entity.enums.TipoPedido;
 import com.sementelivre.backend.entity.repository.EstoqueRepository;
 import com.sementelivre.backend.entity.repository.PedidoRepository;
 import com.sementelivre.backend.entity.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.EstoqueInsuficienteException;
+import com.sementelivre.backend.exception.NegociacaoNaoPermitidaException;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 import com.sementelivre.backend.exception.TransicaoStatusInvalidaException;
 import com.sementelivre.backend.repository.UsuarioRepository;
@@ -59,19 +64,28 @@ public class PedidoService {
     private final EstoqueRepository estoqueRepository;
     private final UsuarioRepository usuarioRepository;
     private final NotificacaoService notificacaoService;
+    private final ApplicationEventPublisher eventos;
+
+    // Ofertas que aparecem no catálogo público e o tipo de pedido que cada uma gera
+    private static final Map<Disponibilidade, TipoPedido> TIPO_POR_DISPONIBILIDADE_PUBLICA = Map.of(
+            Disponibilidade.PARA_VENDA, TipoPedido.VENDA,
+            Disponibilidade.PARA_TROCA, TipoPedido.TROCA,
+            Disponibilidade.PARA_DOACAO, TipoPedido.DOACAO);
 
     public PedidoService(
             PedidoRepository pedidoRepository,
             ProdutoRepository produtoRepository,
             EstoqueRepository estoqueRepository,
             UsuarioRepository usuarioRepository,
-            NotificacaoService notificacaoService) {
+            NotificacaoService notificacaoService,
+            ApplicationEventPublisher eventos) {
 
         this.pedidoRepository = pedidoRepository;
         this.produtoRepository = produtoRepository;
         this.estoqueRepository = estoqueRepository;
         this.usuarioRepository = usuarioRepository;
         this.notificacaoService = notificacaoService;
+        this.eventos = eventos;
     }
 
     // CREATE
@@ -93,8 +107,54 @@ public class PedidoService {
         // Os itens sao persistidos junto pelo cascade configurado em Pedido.itens
         Pedido registrado = pedidoRepository.save(pedido);
         notificacaoService.criarParaPedidoRegistrado(registrado);
+        publicarCopiaDoPedido(registrado);
 
         return mapToResponse(registrado);
+    }
+
+    // CREATE - pedido feito pelo site público, sem login.
+    // Produto, produtor e preço saem da oferta. O tipo é o da oferta, a não
+    // ser que o produtor aceite negociar e quem pede proponha outro.
+    @Transactional
+    public PedidoPublicoResponseDTO criarPublico(PedidoPublicoRequestDTO dto) {
+
+        Estoque oferta = estoqueRepository.findPorIdParaAtualizacao(dto.estoqueId())
+                .filter(estoque -> TIPO_POR_DISPONIBILIDADE_PUBLICA.containsKey(estoque.getDisponibilidade()))
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Oferta não encontrada no catálogo: " + dto.estoqueId()));
+
+        TipoPedido tipo = tipoDoPedidoPublico(oferta, dto.tipoPedido());
+
+        Pedido pedido = new Pedido();
+        pedido.setTipoPedido(tipo);
+        pedido.setMensagemOpcional(textoOuNulo(dto.mensagemOpcional()));
+        pedido.setStatus(StatusPedido.PENDENTE);
+        pedido.setProprietarioRecebedor(oferta.getProprietario());
+        pedido.setComprador(Comprador.builder()
+                .nome(dto.nome().trim())
+                .email(dto.email().trim())
+                .telefone(textoOuNulo(dto.telefone()))
+                .build());
+        pedido.adicionarItem(Itens.builder()
+                .produto(oferta.getProduto())
+                .quantidade(dto.quantidade())
+                // Preço só vale para venda: troca ou doação proposta não tem total
+                .precoUnitario(tipo == TipoPedido.VENDA ? oferta.getPreco() : null)
+                .build());
+
+        reservarEstoque(pedido);
+
+        Pedido registrado = pedidoRepository.save(pedido);
+        notificacaoService.criarParaPedidoRegistrado(registrado);
+        publicarCopiaDoPedido(registrado);
+
+        return new PedidoPublicoResponseDTO(
+                registrado.getId(),
+                registrado.getTipoPedido(),
+                registrado.getStatus(),
+                registrado.getDataPedido(),
+                oferta.getProduto().getNomePopular(),
+                dto.quantidade());
     }
 
     // READ - listar pedidos do proprietario
@@ -325,6 +385,35 @@ public class PedidoService {
                 && (filtro.dataFim() == null || !dia.isAfter(filtro.dataFim()));
     }
 
+    // O CopiaDoPedidoListener só envia depois do commit
+    private void publicarCopiaDoPedido(Pedido pedido) {
+        CopiaDoPedidoEmail.de(pedido).ifPresent(eventos::publishEvent);
+    }
+
+    private static TipoPedido tipoDoPedidoPublico(Estoque oferta, TipoPedido proposto) {
+
+        TipoPedido daOferta = TIPO_POR_DISPONIBILIDADE_PUBLICA.get(oferta.getDisponibilidade());
+
+        if (proposto == null || proposto == daOferta) {
+            return daOferta;
+        }
+        if (!oferta.isAceitaNegociacao()) {
+            throw new NegociacaoNaoPermitidaException(
+                    "O produtor não aceita negociar esta oferta: o pedido precisa ser de "
+                            + ROTULO_TIPO.get(daOferta) + ".");
+        }
+        return proposto;
+    }
+
+    private static final Map<TipoPedido, String> ROTULO_TIPO = Map.of(
+            TipoPedido.VENDA, "venda",
+            TipoPedido.TROCA, "troca",
+            TipoPedido.DOACAO, "doação");
+
+    private static String textoOuNulo(String valor) {
+        return valor == null || valor.isBlank() ? null : valor.trim();
+    }
+
     private Comprador novoComprador(CompradorDTO dto) {
         if (dto == null) {
             return null;
@@ -332,6 +421,7 @@ public class PedidoService {
         return Comprador.builder()
                 .nome(dto.nome().trim())
                 .telefone(dto.telefone())
+                .email(textoOuNulo(dto.email()))
                 .build();
     }
 
@@ -418,7 +508,7 @@ public class PedidoService {
                 pedido.getMensagemOpcional(),
                 pedido.getDataPedido(),
                 pedido.getStatus(),
-                pedido.getUsuarioSolicitante().getId(),
+                pedido.getUsuarioSolicitante() != null ? pedido.getUsuarioSolicitante().getId() : null,
                 pedido.getProprietarioRecebedor().getId(),
                 pedido.getItens().stream().map(this::mapToItemResponse).toList(),
                 mapToCompradorResponse(pedido.getComprador())
@@ -429,7 +519,7 @@ public class PedidoService {
         if (comprador == null) {
             return null;
         }
-        return new CompradorDTO(comprador.getNome(), comprador.getTelefone());
+        return new CompradorDTO(comprador.getNome(), comprador.getTelefone(), comprador.getEmail());
     }
 
     private ItemPedidoResponseDTO mapToItemResponse(Itens item) {
