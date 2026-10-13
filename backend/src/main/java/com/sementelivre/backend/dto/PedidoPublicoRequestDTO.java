@@ -2,6 +2,8 @@ package com.sementelivre.backend.dto;
 
 import java.util.UUID;
 
+import com.sementelivre.backend.entity.enums.TipoPedido;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,8 +13,8 @@ import jakarta.validation.constraints.Size;
 /**
  * Pedido feito pelo site público, sem login.
  *
- * Só a oferta (estoque) e a quantidade vêm do navegador; produto, produtor,
- * preço e tipo do pedido são lidos do estoque no backend.
+ * Só a oferta (estoque), a quantidade e o tipo proposto vêm do navegador;
+ * produto, produtor e preço são lidos do estoque no backend.
  */
 public record PedidoPublicoRequestDTO(
 
@@ -36,6 +38,13 @@ public record PedidoPublicoRequestDTO(
         String telefone,
 
         @Size(max = 2000, message = "A mensagem deve ter no máximo 2000 caracteres")
-        String mensagemOpcional
+        String mensagemOpcional,
+
+        // Ausente, vale o tipo da oferta. Diferente dele, só se o produtor aceitar negociar.
+        TipoPedido tipoPedido
 ) {
+    public PedidoPublicoRequestDTO(UUID estoqueId, Double quantidade, String nome, String email,
+            String telefone, String mensagemOpcional) {
+        this(estoqueId, quantidade, nome, email, telefone, mensagemOpcional, null);
+    }
 }

@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Lock,
   Loader2,
   Search,
   Leaf,
@@ -296,6 +297,12 @@ export default function MarketplacePage() {
                           {descricao}
                         </p>
                       )}
+                      {!oferta.aceitaNegociacao && (
+                        <p className="flex items-center gap-1 text-[11px] text-gray-500 pt-1">
+                          <Lock className="w-3 h-3" />
+                          Só {cfg.label.replace("Para ", "").toLowerCase()}, sem negociação
+                        </p>
+                      )}
                     </div>
 
                     <Button
@@ -307,7 +314,7 @@ export default function MarketplacePage() {
                       }
                     >
                       <MessageCircle className="w-3.5 h-3.5" />
-                      Quero negociar
+                      {oferta.aceitaNegociacao ? "Quero negociar" : "Fazer pedido"}
                     </Button>
                   </CardContent>
                 </Card>

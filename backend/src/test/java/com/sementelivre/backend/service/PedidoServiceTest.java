@@ -44,6 +44,7 @@ import com.sementelivre.backend.entity.repository.EstoqueRepository;
 import com.sementelivre.backend.entity.repository.PedidoRepository;
 import com.sementelivre.backend.entity.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.EstoqueInsuficienteException;
+import com.sementelivre.backend.exception.NegociacaoNaoPermitidaException;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 import com.sementelivre.backend.exception.TransicaoStatusInvalidaException;
 import com.sementelivre.backend.repository.UsuarioRepository;
@@ -233,6 +234,63 @@ class PedidoServiceTest {
         assertEquals("ana@exemplo.com", copia.para());
         assertTrue(copia.texto().contains("Olá, Ana Souza!"), copia.texto());
         assertTrue(copia.texto().contains("4 x Milho crioulo"), copia.texto());
+    }
+
+    // NEGOCIAÇÃO DO TIPO NO PEDIDO PÚBLICO
+
+    @Test
+    void ofertaQueAceitaNegociarDeixaProporOutroTipoSemPreco() {
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        PedidoPublicoResponseDTO resposta = pedidoService.criarPublico(requestPublicoComTipo(TipoPedido.TROCA));
+
+        Pedido pedido = pedidoSalvo();
+        assertEquals(TipoPedido.TROCA, resposta.tipoPedido());
+        assertEquals(TipoPedido.TROCA, pedido.getTipoPedido());
+        // o preço da oferta é de venda: numa troca proposta não há total
+        assertNull(pedido.getItens().get(0).getPrecoUnitario());
+    }
+
+    @Test
+    void ofertaQueNaoAceitaNegociarRecusaOutroTipo() {
+        estoque.setAceitaNegociacao(false);
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+
+        NegociacaoNaoPermitidaException erro = assertThrows(NegociacaoNaoPermitidaException.class,
+                () -> pedidoService.criarPublico(requestPublicoComTipo(TipoPedido.DOACAO)));
+
+        assertEquals("O produtor não aceita negociar esta oferta: o pedido precisa ser de venda.", erro.getMessage());
+        assertEquals(ESTOQUE_INICIAL, estoque.getQuantidade());
+        verify(pedidoRepository, never()).save(any(Pedido.class));
+    }
+
+    @Test
+    void ofertaQueNaoAceitaNegociarAceitaOProprioTipo() {
+        estoque.setAceitaNegociacao(false);
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        PedidoPublicoResponseDTO resposta = pedidoService.criarPublico(requestPublicoComTipo(TipoPedido.VENDA));
+
+        assertEquals(TipoPedido.VENDA, resposta.tipoPedido());
+        assertEquals(15.0, pedidoSalvo().getItens().get(0).getPrecoUnitario());
+    }
+
+    @Test
+    void semTipoInformadoValeODaOfertaMesmoSemNegociacao() {
+        estoque.setAceitaNegociacao(false);
+        estoque.setDisponibilidade(Disponibilidade.PARA_DOACAO);
+        when(estoqueRepository.findPorIdParaAtualizacao(estoque.getId())).thenReturn(Optional.of(estoque));
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        PedidoPublicoResponseDTO resposta = pedidoService.criarPublico(requestPublico());
+
+        assertEquals(TipoPedido.DOACAO, resposta.tipoPedido());
+        assertNull(pedidoSalvo().getItens().get(0).getPrecoUnitario());
     }
 
     @Test
@@ -710,6 +768,17 @@ class PedidoServiceTest {
                 List.of(new ItemPedidoRequestDTO(produtoId, quantidade, 15.0)),
                 null
         );
+    }
+
+    private PedidoPublicoRequestDTO requestPublicoComTipo(TipoPedido tipo) {
+        return new PedidoPublicoRequestDTO(
+                estoque.getId(), QUANTIDADE_PEDIDA, "Ana Souza", "ana@exemplo.com", null, null, tipo);
+    }
+
+    private Pedido pedidoSalvo() {
+        ArgumentCaptor<Pedido> salvo = ArgumentCaptor.forClass(Pedido.class);
+        verify(pedidoRepository).save(salvo.capture());
+        return salvo.getValue();
     }
 
     private PedidoPublicoRequestDTO requestPublico() {

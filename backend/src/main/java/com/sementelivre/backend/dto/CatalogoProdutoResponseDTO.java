@@ -30,7 +30,7 @@ public record CatalogoProdutoResponseDTO(
         UUID comunidadeId,
         String comunidade,
         String municipio,
-        String uf
-
+        String uf,
+        boolean aceitaNegociacao
 ) {
 }

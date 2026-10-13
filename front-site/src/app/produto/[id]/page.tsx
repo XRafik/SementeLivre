@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Leaf, FlaskConical, BookOpen, ArrowLeft } from "lucide-react";
-import type { Oferta, PedidoPublicoRequest, ProdutoDetalhe } from "@/lib/types";
+import { Loader2, Leaf, FlaskConical, BookOpen, ArrowLeft, Lock } from "lucide-react";
+import type { Oferta, PedidoPublicoRequest, ProdutoDetalhe, TipoPedido } from "@/lib/types";
 import {
   DISPONIBILIDADE_CONFIG,
   TIPO_PEDIDO_LABEL,
@@ -39,6 +39,8 @@ export default function ProdutoPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  // null = o tipo da própria oferta; outro valor só quando o produtor aceita negociar
+  const [tipoProposto, setTipoProposto] = useState<TipoPedido | null>(null);
 
   useEffect(() => {
     // A home manda ?oferta=<estoqueId> para abrir já com a oferta escolhida
@@ -58,10 +60,12 @@ export default function ProdutoPage() {
   }, [id]);
 
   const oferta: Oferta | undefined = produto?.ofertas.find((o) => o.estoqueId === estoqueId);
+  const tipoDaOferta = oferta ? DISPONIBILIDADE_CONFIG[oferta.disponibilidade].tipoPedido : null;
+  const tipoPedido = oferta?.aceitaNegociacao ? (tipoProposto ?? tipoDaOferta) : tipoDaOferta;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!oferta) return;
+    if (!oferta || !tipoPedido) return;
     if (!form.nome || !form.email) {
       toast.error("Preencha os campos obrigatórios.");
       return;
@@ -75,6 +79,7 @@ export default function ProdutoPage() {
         email: form.email,
         telefone: form.telefone,
         mensagemOpcional: form.mensagemOpcional,
+        tipoPedido,
       };
       const res = await fetch("/api/pedidos", {
         method: "POST",
@@ -210,7 +215,10 @@ export default function ProdutoPage() {
                   <select
                     id="oferta"
                     value={oferta.estoqueId}
-                    onChange={(e) => setEstoqueId(e.target.value)}
+                    onChange={(e) => {
+                      setEstoqueId(e.target.value);
+                      setTipoProposto(null);
+                    }}
                     className="w-full rounded-md border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
                   >
                     {produto.ofertas.map((o) => (
@@ -226,12 +234,40 @@ export default function ProdutoPage() {
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Tipo de negociação</Label>
-                  <p className="rounded-md border border-green-100 bg-green-50/50 px-3 py-2 text-sm text-gray-700">
-                    {TIPO_PEDIDO_LABEL[statusCfg.tipoPedido]}
-                  </p>
-                </div>
+                {oferta.aceitaNegociacao ? (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="tipoPedido">Tipo de negociação</Label>
+                    <select
+                      id="tipoPedido"
+                      value={tipoPedido ?? statusCfg.tipoPedido}
+                      onChange={(e) => setTipoProposto(e.target.value as TipoPedido)}
+                      className="w-full rounded-md border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                    >
+                      {(Object.keys(TIPO_PEDIDO_LABEL) as TipoPedido[]).map((t) => (
+                        <option key={t} value={t}>
+                          {TIPO_PEDIDO_LABEL[t]}
+                          {t === statusCfg.tipoPedido ? " (oferta)" : " (proposta)"}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-400">
+                      {tipoPedido === statusCfg.tipoPedido
+                        ? "O produtor aceita negociar: você pode propor outro tipo."
+                        : `Proposta: a oferta é de ${TIPO_PEDIDO_LABEL[statusCfg.tipoPedido].toLowerCase()}, o produtor vai avaliar.`}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label>Tipo de negociação</Label>
+                    <p className="flex items-center gap-2 rounded-md border border-green-100 bg-green-50/50 px-3 py-2 text-sm text-gray-700">
+                      <Lock className="w-3.5 h-3.5 text-gray-400" />
+                      {TIPO_PEDIDO_LABEL[statusCfg.tipoPedido]}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      O produtor não aceita negociar: só {TIPO_PEDIDO_LABEL[statusCfg.tipoPedido].toLowerCase()}.
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label htmlFor="quantidade">Quantidade ({unidade(oferta.tipoPesagem)})</Label>
                   <Input

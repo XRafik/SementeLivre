@@ -19,7 +19,7 @@ public record EstoqueResponseDTO(
         Disponibilidade disponibilidade,
         TipoMovimentacao tipoMovimentacao,
         LocalDateTime dataMovimentacao,
-        LocalDateTime dataUltimaAtualizacao
-
+        LocalDateTime dataUltimaAtualizacao,
+        boolean aceitaNegociacao
 ) {
 }
