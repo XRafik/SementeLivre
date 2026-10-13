@@ -255,6 +255,23 @@ public class GlobalExceptionHandler {
         return "rg";
     }
 
+    //nome de comunidade parecido com um existente (CDU-21): a mensagem já traz a sugestão de nome;
+    //vai também em fieldErrors para o front mostrar embaixo do campo "nome"
+    @ExceptionHandler(NomeSimilarException.class)
+    public ResponseEntity<ErrorResponse> handleNomeSimilar(NomeSimilarException e, HttpServletRequest request){
+        HttpStatus status = HttpStatus.CONFLICT;
+
+        ErrorResponse err = new ErrorResponse(
+                "Similar Name",
+                e.getMessage(),
+                Instant.now(),
+                status.value(),
+                request.getRequestURI(),
+                List.of("nome: " + e.getMessage())
+        );
+        return ResponseEntity.status(status).body(err);
+    }
+
     @ExceptionHandler(TransicaoStatusInvalidaException.class)
     public ResponseEntity<ErrorResponse> handleTransicaoStatusInvalida(TransicaoStatusInvalidaException e, HttpServletRequest request){
         HttpStatus status = HttpStatus.CONFLICT;
