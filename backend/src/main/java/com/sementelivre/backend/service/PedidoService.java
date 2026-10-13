@@ -36,6 +36,7 @@ import com.sementelivre.backend.entity.repository.EstoqueRepository;
 import com.sementelivre.backend.entity.repository.PedidoRepository;
 import com.sementelivre.backend.entity.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.EstoqueInsuficienteException;
+import com.sementelivre.backend.exception.NegociacaoNaoPermitidaException;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 import com.sementelivre.backend.exception.TransicaoStatusInvalidaException;
 import com.sementelivre.backend.repository.UsuarioRepository;
@@ -112,8 +113,8 @@ public class PedidoService {
     }
 
     // CREATE - pedido feito pelo site público, sem login.
-    // Produto, produtor, preço e tipo saem da oferta; do navegador só vêm a
-    // oferta, a quantidade e os dados de contato.
+    // Produto, produtor e preço saem da oferta. O tipo é o da oferta, a não
+    // ser que o produtor aceite negociar e quem pede proponha outro.
     @Transactional
     public PedidoPublicoResponseDTO criarPublico(PedidoPublicoRequestDTO dto) {
 
@@ -122,8 +123,10 @@ public class PedidoService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Oferta não encontrada no catálogo: " + dto.estoqueId()));
 
+        TipoPedido tipo = tipoDoPedidoPublico(oferta, dto.tipoPedido());
+
         Pedido pedido = new Pedido();
-        pedido.setTipoPedido(TIPO_POR_DISPONIBILIDADE_PUBLICA.get(oferta.getDisponibilidade()));
+        pedido.setTipoPedido(tipo);
         pedido.setMensagemOpcional(textoOuNulo(dto.mensagemOpcional()));
         pedido.setStatus(StatusPedido.PENDENTE);
         pedido.setProprietarioRecebedor(oferta.getProprietario());
@@ -135,7 +138,8 @@ public class PedidoService {
         pedido.adicionarItem(Itens.builder()
                 .produto(oferta.getProduto())
                 .quantidade(dto.quantidade())
-                .precoUnitario(oferta.getPreco())
+                // Preço só vale para venda: troca ou doação proposta não tem total
+                .precoUnitario(tipo == TipoPedido.VENDA ? oferta.getPreco() : null)
                 .build());
 
         reservarEstoque(pedido);
@@ -385,6 +389,26 @@ public class PedidoService {
     private void publicarCopiaDoPedido(Pedido pedido) {
         CopiaDoPedidoEmail.de(pedido).ifPresent(eventos::publishEvent);
     }
+
+    private static TipoPedido tipoDoPedidoPublico(Estoque oferta, TipoPedido proposto) {
+
+        TipoPedido daOferta = TIPO_POR_DISPONIBILIDADE_PUBLICA.get(oferta.getDisponibilidade());
+
+        if (proposto == null || proposto == daOferta) {
+            return daOferta;
+        }
+        if (!oferta.isAceitaNegociacao()) {
+            throw new NegociacaoNaoPermitidaException(
+                    "O produtor não aceita negociar esta oferta: o pedido precisa ser de "
+                            + ROTULO_TIPO.get(daOferta) + ".");
+        }
+        return proposto;
+    }
+
+    private static final Map<TipoPedido, String> ROTULO_TIPO = Map.of(
+            TipoPedido.VENDA, "venda",
+            TipoPedido.TROCA, "troca",
+            TipoPedido.DOACAO, "doação");
 
     private static String textoOuNulo(String valor) {
         return valor == null || valor.isBlank() ? null : valor.trim();

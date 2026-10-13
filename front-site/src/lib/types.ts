@@ -28,6 +28,8 @@ export interface OfertaCatalogo {
   quantidade: number | null;
   tipoPesagem: Pesagem | null;
   disponibilidade: Disponibilidade;
+  /** false: o produtor só aceita o tipo da disponibilidade (venda, troca ou doação). */
+  aceitaNegociacao: boolean;
   comunidadeId: string | null;
   comunidade: string | null;
   municipio: string | null;
@@ -41,6 +43,7 @@ export interface Oferta {
   quantidade: number | null;
   tipoPesagem: Pesagem | null;
   disponibilidade: Disponibilidade;
+  aceitaNegociacao: boolean;
 }
 
 export interface ProdutoDetalhe {
@@ -65,4 +68,5 @@ export interface PedidoPublicoRequest {
   email: string;
   telefone: string;
   mensagemOpcional: string;
+  tipoPedido: TipoPedido;
 }

@@ -12,7 +12,7 @@ public record CatalogoOfertaResponseDTO(
         Double preco,
         Double quantidade,
         Pesagem tipoPesagem,
-        Disponibilidade disponibilidade
-
+        Disponibilidade disponibilidade,
+        boolean aceitaNegociacao
 ) {
 }

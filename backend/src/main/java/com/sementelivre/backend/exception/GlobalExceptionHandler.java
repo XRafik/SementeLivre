@@ -111,6 +111,22 @@ public class GlobalExceptionHandler {
         return Math.max(1, espera.toSeconds() + (espera.toNanosPart() > 0 ? 1 : 0));
     }
 
+    //trata erro 422 - pedido do site com tipo diferente da oferta, que o produtor não deixou negociar
+    @ExceptionHandler(NegociacaoNaoPermitidaException.class)
+    public ResponseEntity<ErrorResponse> handleNegociacaoNaoPermitida(NegociacaoNaoPermitidaException e, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.UNPROCESSABLE_ENTITY;
+
+        ErrorResponse err = new ErrorResponse(
+            "Negotiation Not Allowed",
+            e.getMessage(),
+            Instant.now(),
+            status.value(),
+            request.getRequestURI(),
+            null
+        );
+        return ResponseEntity.status(status).body(err);
+    }
+
     //trata erro 422 - pedido com quantidade maior que o estoque disponível
     @ExceptionHandler(EstoqueInsuficienteException.class)
     public ResponseEntity<ErrorResponse> handleEstoqueInsuficiente(EstoqueInsuficienteException e, HttpServletRequest request) {

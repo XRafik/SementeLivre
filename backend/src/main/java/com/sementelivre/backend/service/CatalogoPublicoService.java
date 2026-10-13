@@ -94,7 +94,8 @@ public class CatalogoPublicoService {
                         estoque.getPreco(),
                         estoque.getQuantidade(),
                         estoque.getTipoPesagem(),
-                        estoque.getDisponibilidade()
+                        estoque.getDisponibilidade(),
+                        estoque.isAceitaNegociacao()
                 ))
                 .toList();
 
@@ -162,7 +163,8 @@ public class CatalogoPublicoService {
                 comunidadeId,
                 nomeComunidade,
                 municipio,
-                uf
+                uf,
+                estoque.isAceitaNegociacao()
         );
     }
 

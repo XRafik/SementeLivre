@@ -71,6 +71,7 @@ public class EstoqueService {
                 .quantidade(dto.quantidade())
                 .tipoPesagem(dto.tipoPesagem())
                 .disponibilidade(dto.disponibilidade())
+                .aceitaNegociacao(dto.aceitaNegociacao() == null || dto.aceitaNegociacao())
                 .tipoMovimentacao(dto.tipoMovimentacao())
                 .dataMovimentacao(LocalDateTime.now())
                 .dataUltimaAtualizacao(LocalDateTime.now())
@@ -130,6 +131,9 @@ public class EstoqueService {
         estoque.setQuantidade(dto.quantidade());
         estoque.setTipoPesagem(dto.tipoPesagem());
         estoque.setDisponibilidade(dto.disponibilidade());
+        if (dto.aceitaNegociacao() != null) {
+            estoque.setAceitaNegociacao(dto.aceitaNegociacao());
+        }
         estoque.setTipoMovimentacao(dto.tipoMovimentacao());
         estoque.setDataMovimentacao(LocalDateTime.now());
         estoque.setDataUltimaAtualizacao(LocalDateTime.now());
@@ -299,7 +303,8 @@ public class EstoqueService {
                 estoque.getDisponibilidade(),
                 estoque.getTipoMovimentacao(),
                 estoque.getDataMovimentacao(),
-                estoque.getDataUltimaAtualizacao()
+                estoque.getDataUltimaAtualizacao(),
+                estoque.isAceitaNegociacao()
         );
     }
 

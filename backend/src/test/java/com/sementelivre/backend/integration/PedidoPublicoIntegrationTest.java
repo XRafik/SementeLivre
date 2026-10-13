@@ -2,6 +2,7 @@ package com.sementelivre.backend.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -173,6 +174,53 @@ class PedidoPublicoIntegrationTest extends AbstractPostgresIntegrationTest {
         } finally {
             List.copyOf(aceitos).forEach(pedidoService::excluir);
         }
+    }
+
+    // NEGOCIAÇÃO
+
+    @Test
+    void ofertaSemNegociacaoSoAceitaOProprioTipo() throws Exception {
+        CrossDomainFixture.Scenario scenario = cenarioComEstoque(100.0);
+        UUID estoqueId = estoque(scenario).getId();
+        transactionTemplate.executeWithoutResult(status ->
+                estoqueRepository.findById(estoqueId).orElseThrow().setAceitaNegociacao(false));
+
+        mockMvc.perform(get("/catalogo/produtos/" + scenario.produto().getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ofertas[0].aceitaNegociacao").value(false));
+
+        mockMvc.perform(pedidoComTipo(estoqueId, "TROCA", "198.51.100.30"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.message").value(
+                        "O produtor não aceita negociar esta oferta: o pedido precisa ser de venda."));
+        assertEquals(100.0, estoque(scenario).getQuantidade());
+
+        String resposta = mockMvc.perform(pedidoComTipo(estoqueId, "VENDA", "198.51.100.31"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        pedidoService.excluir(UUID.fromString(resposta.replaceAll(".*\"id\":\"([^\"]+)\".*", "$1")));
+    }
+
+    @Test
+    void ofertaQueAceitaNegociarRegistraOTipoProposto() throws Exception {
+        CrossDomainFixture.Scenario scenario = cenarioComEstoque(100.0);
+        UUID estoqueId = estoque(scenario).getId();
+
+        String resposta = mockMvc.perform(pedidoComTipo(estoqueId, "DOACAO", "198.51.100.32"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tipoPedido").value("DOACAO"))
+                .andReturn().getResponse().getContentAsString();
+        pedidoService.excluir(UUID.fromString(resposta.replaceAll(".*\"id\":\"([^\"]+)\".*", "$1")));
+    }
+
+    private MockHttpServletRequestBuilder pedidoComTipo(UUID estoqueId, String tipo, String ipDoVisitante) {
+        return post("/catalogo/pedidos")
+                .header("X-Forwarded-For", ipDoVisitante)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"estoqueId": "%s", "quantidade": 1, "nome": "Teste Negociação",
+                         "email": "negociacao-%s@exemplo.com", "tipoPedido": "%s"}
+                        """.formatted(estoqueId, UUID.randomUUID(), tipo));
     }
 
     // LIMITE (cada teste usa IPs e e-mails próprios: o limitador é compartilhado no contexto)

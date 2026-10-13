@@ -6,7 +6,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -203,6 +205,58 @@ class EstoqueServiceTest {
         verify(estoqueRepository).findById(estoqueId);
         verify(produtoRepository).findById(produtoId);
         verify(estoqueRepository).save(estoque);
+    }
+
+    // NEGOCIAÇÃO
+
+    @Test
+    void ofertaNovaAceitaNegociarQuandoNaoInformado() {
+        mockCriacao();
+
+        assertTrue(estoqueService.criar(dto).aceitaNegociacao());
+    }
+
+    @Test
+    void deveCriarOfertaSemNegociacao() {
+        mockCriacao();
+
+        assertFalse(estoqueService.criar(comNegociacao(false)).aceitaNegociacao());
+    }
+
+    @Test
+    void atualizarSemInformarNegociacaoMantemOQueEstava() {
+        estoque.setAceitaNegociacao(false);
+        mockAtualizacao();
+
+        assertFalse(estoqueService.atualizar(estoqueId, dto).aceitaNegociacao());
+    }
+
+    @Test
+    void deveBloquearNegociacaoAoAtualizar() {
+        mockAtualizacao();
+
+        assertFalse(estoqueService.atualizar(estoqueId, comNegociacao(false)).aceitaNegociacao());
+        assertFalse(estoque.isAceitaNegociacao());
+    }
+
+    private EstoqueRequestDTO comNegociacao(boolean aceita) {
+        return new EstoqueRequestDTO(proprietarioId, produtoId, "Estoque de milho", 15.0, 10.0,
+                Pesagem.KG, Disponibilidade.PARA_VENDA, TipoMovimentacao.ENTRADA, aceita);
+    }
+
+    private void mockCriacao() {
+        when(produtoRepository.findById(produtoId)).thenReturn(Optional.of(produto));
+        when(estoqueRepository.save(any(Estoque.class))).thenAnswer(invocation -> {
+            Estoque salvo = invocation.getArgument(0);
+            salvo.setId(estoqueId);
+            return salvo;
+        });
+    }
+
+    private void mockAtualizacao() {
+        when(estoqueRepository.findById(estoqueId)).thenReturn(Optional.of(estoque));
+        when(produtoRepository.findById(produtoId)).thenReturn(Optional.of(produto));
+        when(estoqueRepository.save(any(Estoque.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
