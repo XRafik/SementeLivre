@@ -72,6 +72,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(err);
     }
 
+    //trata erro 409 - exclusão barrada por registros vinculados (pessoa com estoque/pedidos,
+    //comunidade com propriedades etc.). Sem este handler a exceção chegava como 500.
+    @ExceptionHandler(DependenciaVinculadaException.class)
+    public ResponseEntity<ErrorResponse> handleDependenciaVinculada(DependenciaVinculadaException e, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.CONFLICT;
+
+        ErrorResponse err = new ErrorResponse(
+            "Conflict",
+            e.getMessage(),
+            Instant.now(),
+            status.value(),
+            request.getRequestURI(),
+            null
+        );
+        return ResponseEntity.status(status).body(err);
+    }
+
     //trata erro 400 na troca de senha: a senha atual informada não confere
     @ExceptionHandler(SenhaAtualIncorretaException.class)
     public ResponseEntity<ErrorResponse> handleSenhaAtualIncorreta(SenhaAtualIncorretaException e, HttpServletRequest request) {

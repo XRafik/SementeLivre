@@ -1,5 +1,6 @@
 package com.sementelivre.backend.security;
 
+import com.sementelivre.backend.entity.Pessoa;
 import com.sementelivre.backend.repository.UsuarioRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -17,7 +18,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return usuarioRepository.findByPessoaEmail(username)
+        return usuarioRepository.findByPessoaEmailIgnoreCase(Pessoa.normalizarEmail(username))
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado com o e-mail: " + username));
     }
 }

@@ -27,7 +27,7 @@ public class PessoaController {
         this.pessoaService = pessoaService;
     }
 
-    // Lista dados pessoais (CPF, e-mail, endereço) de todos: só admin.
+    // CPF, RG, e-mail e endereco de todo mundo: so admin lista.
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<PessoaResponseDTO>> listar() {
@@ -37,7 +37,7 @@ public class PessoaController {
         return ResponseEntity.ok(pessoas);
     }
 
-    // Cada um vê só os próprios dados; admin vê qualquer um.
+    // Cada um consulta so os proprios dados; admin consulta qualquer um.
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or #id == principal.id")
     public ResponseEntity<PessoaResponseDTO> buscarPorId(@PathVariable UUID id) {

@@ -36,4 +36,6 @@ public interface RelatorioRepository extends BaseRepository<Relatorio, UUID> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from Relatorio r where r.proprietario.id = :proprietarioId")
     void deleteAllByProprietarioId(@Param("proprietarioId") UUID proprietarioId);
+
+    long countByProprietarioId(UUID proprietarioId);
 }

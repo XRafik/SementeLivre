@@ -51,6 +51,8 @@ public interface NotificacaoRepository extends BaseRepository<Notificacao, UUID>
      */
     long countByProprietarioIdAndLidaFalse(UUID proprietarioId);
 
+    long countByProprietarioId(UUID proprietarioId);
+
     /** Remove as notificações do proprietário na exclusão da conta (LGPD). */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from Notificacao n where n.proprietario.id = :proprietarioId")
