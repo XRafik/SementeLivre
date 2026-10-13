@@ -11,23 +11,29 @@ ordem e sem precisar de banco limpo. A única interceptação de rede é a dos t
 
 ## Como rodar localmente
 
-```bash
-# 1. Postgres para os testes (porta 5434, separado do banco de dev)
-docker run -d --name semente_livre_e2e_db -p 5434:5432 \
-  -e POSTGRES_USER=devuser -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=e2edb postgres:15
+Todos os comandos partem da raiz do repositório. O backend fica rodando, então use dois
+terminais.
 
-# 2. Backend apontando para esse banco (o Flyway cria o schema e o seeder)
+**Terminal 1 — banco e backend**
+
+```bash
+# Postgres só para os testes (porta 5434, separado do banco de dev)
+docker run -d --name semente_livre_e2e_db -p 5434:5432   -e POSTGRES_USER=devuser -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=e2edb postgres:15
+# nas próximas vezes: docker start semente_livre_e2e_db
+
+# Backend apontando para esse banco (o Flyway cria o schema e o seeder)
 cd backend
 ./mvnw -DskipTests package
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/e2edb \
-PEDIDO_PUBLICO_LIMITE_POR_IP=1000 PEDIDO_PUBLICO_LIMITE_POR_EMAIL=1000 \
-  java -jar target/backend-0.0.1-SNAPSHOT.jar
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/e2edb PEDIDO_PUBLICO_LIMITE_POR_IP=1000 PEDIDO_PUBLICO_LIMITE_POR_EMAIL=1000   java -jar target/backend-0.0.1-SNAPSHOT.jar
+```
 
-# 3. Build dos frontends (o Playwright sobe os dois com `next start`)
-cd front-app && npm ci && npm run build
-cd front-site && npm ci && npm run build
+**Terminal 2 — frontends e testes**
 
-# 4. Testes
+```bash
+# Build dos frontends (o Playwright sobe os dois com `next start`)
+(cd front-app && npm ci && npm run build)
+(cd front-site && npm ci && npm run build)
+
 cd e2e
 npm ci
 npm run install:browsers   # só na primeira vez

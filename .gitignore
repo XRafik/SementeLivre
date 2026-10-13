@@ -28,3 +28,6 @@ out/
 Thumbs.db
 
 **/target/
+
+### Fotos enviadas ao rodar o backend localmente (testes e2e, dev) ###
+backend/uploads/
