@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +30,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/estoques")
+@Tag(name = "Estoque", description = "Ofertas de cada proprietário (quantidade, preço, disponibilidade) e movimentações.")
 public class EstoqueController {
 
     private final EstoqueService estoqueService;

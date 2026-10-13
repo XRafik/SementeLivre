@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -29,6 +31,7 @@ import com.sementelivre.backend.service.ProdutorPublicoService;
  */
 @RestController
 @RequestMapping("/produtores")
+@Tag(name = "Produtor público", description = "Perfil público do produtor que aceitou aparecer no site (sem login).")
 public class ProdutorPublicoController {
 
     private final ProdutorPublicoService produtorPublicoService;

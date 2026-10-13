@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -24,6 +26,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/notificacoes")
+@Tag(name = "Notificações", description = "Notificações geradas pelos pedidos (CDU-26).")
 public class NotificacaoController {
 
     private final NotificacaoService notificacaoService;

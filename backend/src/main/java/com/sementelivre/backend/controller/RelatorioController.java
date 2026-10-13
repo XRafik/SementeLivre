@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +24,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/relatorios")
+@Tag(name = "Relatórios", description = "Histórico de relatórios emitidos.")
 public class RelatorioController {
 
     private final RelatorioService relatorioService;

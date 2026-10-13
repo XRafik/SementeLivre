@@ -83,7 +83,17 @@ Em ambiente `dev`, CORS permite somente:
 
 Métodos permitidos: `GET`, `POST`, `PUT`, `PATCH`, `DELETE` e `OPTIONS`. Origem externa não recebe autorização CORS.
 
-Backend ainda não possui controllers REST. Por isso, documento OpenAPI lista metadados e schemas DTO, mas `paths` fica vazio até endpoints serem implementados.
+Todos os endpoints aparecem no Swagger, agrupados pelo `@Tag` de cada controller
+(Autenticação, Comunidades, Pedidos, Catálogo público...). Os schemas são gerados dos
+DTOs que os controllers usam; não registre schema escrito à mão no `OpenApiConfig`,
+porque ele substitui o gerado e fica desatualizado.
+
+Para chamar rotas protegidas pelo Swagger UI: execute `POST /auth/login`, copie o
+`accessToken` da resposta, clique em **Authorize** e cole o token (sem o prefixo
+`Bearer`). Rotas de administração exigem a conta de admin.
+
+`CorsOpenApiIntegrationTest` garante que todo endpoint tem grupo, que o esquema JWT
+está no documento e que o CORS libera só as origens dos frontends.
 
 Teste preflight:
 

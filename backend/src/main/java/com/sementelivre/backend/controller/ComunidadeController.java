@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 import com.sementelivre.backend.dto.ComunidadeRequestDTO;
 import com.sementelivre.backend.dto.ComunidadeResponseDTO;
@@ -13,6 +15,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/comunidades")
+@Tag(name = "Comunidades", description = "Solicitação de comunidade pelo proprietário; aprovação, rejeição e edição pelo admin.")
 public class ComunidadeController {
 
     private final ComunidadeService comunidadeService;

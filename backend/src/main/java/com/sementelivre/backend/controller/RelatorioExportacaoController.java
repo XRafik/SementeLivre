@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -34,6 +36,7 @@ import com.sementelivre.backend.util.RelatorioPdf;
  */
 @RestController
 @RequestMapping("/relatorios")
+@Tag(name = "Relatórios - exportação", description = "Relatórios de estoque e pedidos em PDF e CSV.")
 public class RelatorioExportacaoController {
 
     private final RelatorioEstoqueService relatorioEstoqueService;
