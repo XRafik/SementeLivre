@@ -9,8 +9,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.sementelivre.backend.dto.PedidoPublicoRequestDTO;
 import com.sementelivre.backend.dto.PedidoPublicoResponseDTO;
+import com.sementelivre.backend.service.LimitePedidoPublicoService;
 import com.sementelivre.backend.service.PedidoService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 /** Pedido feito pelo site público (front-site), sem login. */
@@ -19,14 +21,21 @@ import jakarta.validation.Valid;
 public class PedidoPublicoController {
 
     private final PedidoService pedidoService;
+    private final LimitePedidoPublicoService limite;
 
-    public PedidoPublicoController(PedidoService pedidoService) {
+    public PedidoPublicoController(PedidoService pedidoService, LimitePedidoPublicoService limite) {
         this.pedidoService = pedidoService;
+        this.limite = limite;
     }
 
     @PostMapping
     public ResponseEntity<PedidoPublicoResponseDTO> criar(
-            @Valid @RequestBody PedidoPublicoRequestDTO pedido) {
+            @Valid @RequestBody PedidoPublicoRequestDTO pedido,
+            HttpServletRequest request) {
+
+        // Sem login, cada pedido manda e-mail para o endereço informado: sem
+        // limite, o formulário vira um jeito de inundar a caixa de alguém.
+        limite.verificar(request, pedido.email());
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(pedidoService.criarPublico(pedido));
