@@ -1,6 +1,6 @@
 import { BACKEND_URL, backendIndisponivel, repassar } from "@/lib/backend";
 
-// Registra o pedido no catálogo público do backend.
+// Registra o pedido no backend, que também envia a cópia por e-mail.
 export async function POST(request: Request) {
   const body = await request.text();
   try {

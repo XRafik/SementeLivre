@@ -86,7 +86,7 @@ export default function ProdutoPage() {
         toast.error(mensagemDeErro(erro, "Erro ao enviar pedido."));
         return;
       }
-      toast.success("Pedido enviado! O produtor vai entrar em contato.");
+      toast.success("Pedido enviado! Uma cópia vai para o e-mail informado.");
       router.push("/");
     } catch {
       toast.error("Erro ao enviar pedido.");
@@ -273,7 +273,7 @@ export default function ProdutoPage() {
                     className="border-green-200 focus-visible:ring-green-400"
                     required
                   />
-                  <p className="text-xs text-gray-400">O produtor usa este e-mail para falar com você.</p>
+                  <p className="text-xs text-gray-400">Enviamos uma cópia do pedido para este e-mail.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="telefone">Telefone (opcional)</Label>

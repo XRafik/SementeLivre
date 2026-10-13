@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +63,7 @@ public class PedidoService {
     private final EstoqueRepository estoqueRepository;
     private final UsuarioRepository usuarioRepository;
     private final NotificacaoService notificacaoService;
+    private final ApplicationEventPublisher eventos;
 
     // Ofertas que aparecem no catálogo público e o tipo de pedido que cada uma gera
     private static final Map<Disponibilidade, TipoPedido> TIPO_POR_DISPONIBILIDADE_PUBLICA = Map.of(
@@ -74,13 +76,15 @@ public class PedidoService {
             ProdutoRepository produtoRepository,
             EstoqueRepository estoqueRepository,
             UsuarioRepository usuarioRepository,
-            NotificacaoService notificacaoService) {
+            NotificacaoService notificacaoService,
+            ApplicationEventPublisher eventos) {
 
         this.pedidoRepository = pedidoRepository;
         this.produtoRepository = produtoRepository;
         this.estoqueRepository = estoqueRepository;
         this.usuarioRepository = usuarioRepository;
         this.notificacaoService = notificacaoService;
+        this.eventos = eventos;
     }
 
     // CREATE
@@ -102,6 +106,7 @@ public class PedidoService {
         // Os itens sao persistidos junto pelo cascade configurado em Pedido.itens
         Pedido registrado = pedidoRepository.save(pedido);
         notificacaoService.criarParaPedidoRegistrado(registrado);
+        publicarCopiaDoPedido(registrado);
 
         return mapToResponse(registrado);
     }
@@ -137,6 +142,7 @@ public class PedidoService {
 
         Pedido registrado = pedidoRepository.save(pedido);
         notificacaoService.criarParaPedidoRegistrado(registrado);
+        publicarCopiaDoPedido(registrado);
 
         return new PedidoPublicoResponseDTO(
                 registrado.getId(),
@@ -373,6 +379,11 @@ public class PedidoService {
 
         return (filtro.dataInicio() == null || !dia.isBefore(filtro.dataInicio()))
                 && (filtro.dataFim() == null || !dia.isAfter(filtro.dataFim()));
+    }
+
+    // O CopiaDoPedidoListener só envia depois do commit
+    private void publicarCopiaDoPedido(Pedido pedido) {
+        CopiaDoPedidoEmail.de(pedido).ifPresent(eventos::publishEvent);
     }
 
     private static String textoOuNulo(String valor) {
