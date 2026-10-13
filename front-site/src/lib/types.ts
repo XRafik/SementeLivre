@@ -1,27 +1,3 @@
-export interface Proprietario {
-  nome: string;
-  telefone: string;
-  cpf: string;
-}
-
-export interface Property {
-  id_propriedade: string;
-  nome: string;
-  endereco: string;
-  area_total: number;
-}
-
-export interface Plantio {
-  id_plantio: string;
-  id_propriedade: string;
-  id_especie: string;
-  data_inicio: string;
-  previsao_colheita: string;
-  area_plantada: number;
-  talhao: string;
-  status: "ativo" | "concluido" | "cancelado";
-}
-
 export type SpeciesStatus = "exchange" | "sale" | "donation" | "unavailable";
 
 export interface Species {
@@ -35,56 +11,15 @@ export interface Species {
   id_comunidade?: string;
   tipoSemente?: TipoSemente;
   quantidadeEstoque?: number;
-  pesoEstoque?: number;
   preco?: number;
-  formaPrecificacao?: string;
   unidadePesagem?: UnidadePesagem;
 }
-
-export interface Estoque {
-  id_estoque: string;
-  id_especie: string;
-  quantidade: number;
-}
-
-export interface Colheita {
-  id_colheita: string;
-  id_especie: string;
-  data: string;
-  quantidade: number;
-}
-
-// ── Multi-community types ──────────────────────────────────────────────────
 
 export interface Comunidade {
   id_comunidade: string;
   nome: string;
   localizacao: string;
   status: "ativa" | "inativa";
-}
-
-export type StatusSolicitacao = "pendente" | "aprovada" | "rejeitada";
-
-export interface SolicitacaoCadastro {
-  id_solicitacao: string;
-  nome_responsavel: string;
-  email: string;
-  senha: string;
-  nome_comunidade: string;
-  localizacao: string;
-  documento_nome: string;
-  documento_base64: string;
-  status: StatusSolicitacao;
-  data_solicitacao: string;
-  observacao: string;
-}
-
-export interface ContaProdutor {
-  id_conta: string;
-  email: string;
-  senha: string;
-  nome: string;
-  id_comunidade: string;
 }
 
 export type TipoSemente = "HORTALICA" | "FRUTIFERA" | "FORRAGEIRA" | "CEREAL" | "LEGUMINOSA" | "OUTRAS";
@@ -103,14 +38,4 @@ export interface Pedido {
   mensagemOpcional: string;
   quantidade: number;
   dataPedido: string;
-}
-
-export interface Notificacao {
-  id_notificacao: string;
-  id_comunidade: string;
-  id_pedido: string;
-  titulo: string;
-  mensagem: string;
-  lida: boolean;
-  dataGeracao: string;
 }
