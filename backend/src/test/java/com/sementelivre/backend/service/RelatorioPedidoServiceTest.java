@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.sementelivre.backend.entity.Comprador;
 import com.sementelivre.backend.entity.Itens;
 import com.sementelivre.backend.entity.Pedido;
 import com.sementelivre.backend.entity.Produto;
@@ -127,6 +128,16 @@ class RelatorioPedidoServiceTest {
         assertTrue(linha[4].contains("2 x Feijao Crioulo"), linha[4]);
         assertTrue(linha[4].contains("1.5 x Feijao Crioulo"), linha[4]);
         assertEquals("3.5", linha[5]);
+    }
+
+    @Test
+    void pedidoDoSiteSemContaDeveMostrarOComprador() {
+        Pedido doSite = pedido(LocalDateTime.of(2026, 10, 12, 10, 0), TipoPedido.VENDA, StatusPedido.PENDENTE, null);
+        doSite.setUsuarioSolicitante(null);
+        doSite.setComprador(Comprador.builder().nome("Ana Souza").email("ana@exemplo.com").build());
+        repositorioDevolve(doSite);
+
+        assertEquals("Ana Souza", linhas(null, null, null, null).get(0)[3]);
     }
 
     @Test

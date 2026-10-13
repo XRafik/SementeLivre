@@ -38,4 +38,8 @@ public class Comprador {
 
     @Column(length = 20)
     private String telefone;
+
+    // Contato de quem pediu pelo site (V10)
+    @Column(length = 254)
+    private String email;
 }

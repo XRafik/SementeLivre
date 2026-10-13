@@ -16,6 +16,8 @@ import com.sementelivre.backend.dto.CompradorDTO;
 import com.sementelivre.backend.dto.ItemPedidoRequestDTO;
 import com.sementelivre.backend.dto.ItemPedidoResponseDTO;
 import com.sementelivre.backend.dto.PedidoFiltroDTO;
+import com.sementelivre.backend.dto.PedidoPublicoRequestDTO;
+import com.sementelivre.backend.dto.PedidoPublicoResponseDTO;
 import com.sementelivre.backend.dto.PedidoRequestDTO;
 import com.sementelivre.backend.dto.PedidoResponseDTO;
 import com.sementelivre.backend.dto.PedidoUpdateDTO;
@@ -28,6 +30,7 @@ import com.sementelivre.backend.entity.Proprietario;
 import com.sementelivre.backend.entity.Usuario;
 import com.sementelivre.backend.entity.enums.Disponibilidade;
 import com.sementelivre.backend.entity.enums.StatusPedido;
+import com.sementelivre.backend.entity.enums.TipoPedido;
 import com.sementelivre.backend.entity.repository.EstoqueRepository;
 import com.sementelivre.backend.entity.repository.PedidoRepository;
 import com.sementelivre.backend.entity.repository.ProdutoRepository;
@@ -59,6 +62,12 @@ public class PedidoService {
     private final EstoqueRepository estoqueRepository;
     private final UsuarioRepository usuarioRepository;
     private final NotificacaoService notificacaoService;
+
+    // Ofertas que aparecem no catálogo público e o tipo de pedido que cada uma gera
+    private static final Map<Disponibilidade, TipoPedido> TIPO_POR_DISPONIBILIDADE_PUBLICA = Map.of(
+            Disponibilidade.PARA_VENDA, TipoPedido.VENDA,
+            Disponibilidade.PARA_TROCA, TipoPedido.TROCA,
+            Disponibilidade.PARA_DOACAO, TipoPedido.DOACAO);
 
     public PedidoService(
             PedidoRepository pedidoRepository,
@@ -95,6 +104,47 @@ public class PedidoService {
         notificacaoService.criarParaPedidoRegistrado(registrado);
 
         return mapToResponse(registrado);
+    }
+
+    // CREATE - pedido feito pelo site público, sem login.
+    // Produto, produtor, preço e tipo saem da oferta; do navegador só vêm a
+    // oferta, a quantidade e os dados de contato.
+    @Transactional
+    public PedidoPublicoResponseDTO criarPublico(PedidoPublicoRequestDTO dto) {
+
+        Estoque oferta = estoqueRepository.findPorIdParaAtualizacao(dto.estoqueId())
+                .filter(estoque -> TIPO_POR_DISPONIBILIDADE_PUBLICA.containsKey(estoque.getDisponibilidade()))
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Oferta não encontrada no catálogo: " + dto.estoqueId()));
+
+        Pedido pedido = new Pedido();
+        pedido.setTipoPedido(TIPO_POR_DISPONIBILIDADE_PUBLICA.get(oferta.getDisponibilidade()));
+        pedido.setMensagemOpcional(textoOuNulo(dto.mensagemOpcional()));
+        pedido.setStatus(StatusPedido.PENDENTE);
+        pedido.setProprietarioRecebedor(oferta.getProprietario());
+        pedido.setComprador(Comprador.builder()
+                .nome(dto.nome().trim())
+                .email(dto.email().trim())
+                .telefone(textoOuNulo(dto.telefone()))
+                .build());
+        pedido.adicionarItem(Itens.builder()
+                .produto(oferta.getProduto())
+                .quantidade(dto.quantidade())
+                .precoUnitario(oferta.getPreco())
+                .build());
+
+        reservarEstoque(pedido);
+
+        Pedido registrado = pedidoRepository.save(pedido);
+        notificacaoService.criarParaPedidoRegistrado(registrado);
+
+        return new PedidoPublicoResponseDTO(
+                registrado.getId(),
+                registrado.getTipoPedido(),
+                registrado.getStatus(),
+                registrado.getDataPedido(),
+                oferta.getProduto().getNomePopular(),
+                dto.quantidade());
     }
 
     // READ - listar pedidos do proprietario
@@ -325,6 +375,10 @@ public class PedidoService {
                 && (filtro.dataFim() == null || !dia.isAfter(filtro.dataFim()));
     }
 
+    private static String textoOuNulo(String valor) {
+        return valor == null || valor.isBlank() ? null : valor.trim();
+    }
+
     private Comprador novoComprador(CompradorDTO dto) {
         if (dto == null) {
             return null;
@@ -332,6 +386,7 @@ public class PedidoService {
         return Comprador.builder()
                 .nome(dto.nome().trim())
                 .telefone(dto.telefone())
+                .email(textoOuNulo(dto.email()))
                 .build();
     }
 
@@ -418,7 +473,7 @@ public class PedidoService {
                 pedido.getMensagemOpcional(),
                 pedido.getDataPedido(),
                 pedido.getStatus(),
-                pedido.getUsuarioSolicitante().getId(),
+                pedido.getUsuarioSolicitante() != null ? pedido.getUsuarioSolicitante().getId() : null,
                 pedido.getProprietarioRecebedor().getId(),
                 pedido.getItens().stream().map(this::mapToItemResponse).toList(),
                 mapToCompradorResponse(pedido.getComprador())
@@ -429,7 +484,7 @@ public class PedidoService {
         if (comprador == null) {
             return null;
         }
-        return new CompradorDTO(comprador.getNome(), comprador.getTelefone());
+        return new CompradorDTO(comprador.getNome(), comprador.getTelefone(), comprador.getEmail());
     }
 
     private ItemPedidoResponseDTO mapToItemResponse(Itens item) {
