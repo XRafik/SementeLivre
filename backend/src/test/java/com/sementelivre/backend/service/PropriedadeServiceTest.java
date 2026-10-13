@@ -1,6 +1,7 @@
 package com.sementelivre.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.sementelivre.backend.dto.LogradouroDTO;
 import com.sementelivre.backend.dto.PropriedadeRequestDTO;
 import com.sementelivre.backend.dto.PropriedadeResponseDTO;
 import com.sementelivre.backend.entity.Comunidade;
@@ -159,5 +161,77 @@ class PropriedadeServiceTest {
         propriedadeService.deletar(propriedadeId);
 
         verify(propriedadeRepository).delete(p);
+    }
+
+    private LogradouroDTO endereco() {
+        LogradouroDTO endereco = new LogradouroDTO();
+        endereco.setLogradouro("Estrada da Serra, km 4");
+        endereco.setMunicipio("Mercês");
+        endereco.setUf("MG");
+        return endereco;
+    }
+
+    @Test
+    void criarComEnderecoCriaLogradouroNovoSemPrecisarDoId() {
+        when(comunidadeRepository.findById(comunidadeId)).thenReturn(Optional.of(comunidade));
+        when(proprietarioRepository.findById(proprietarioId)).thenReturn(Optional.of(proprietario));
+        when(logradouroRepository.save(any(Logradouro.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(propriedadeRepository.save(any(Propriedade.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PropriedadeResponseDTO resposta = propriedadeService.criar(new PropriedadeRequestDTO(
+                "Sítio Boa Vista", BigDecimal.TEN, null, proprietarioId, comunidadeId, endereco()));
+
+        assertEquals("Mercês", resposta.logradouroMunicipio());
+        assertEquals("Estrada da Serra, km 4", resposta.endereco().getLogradouro());
+        verify(logradouroRepository, never()).findById(any());
+    }
+
+    @Test
+    void criarSemEnderecoNemLogradouroIdRecusa() {
+        when(comunidadeRepository.findById(comunidadeId)).thenReturn(Optional.of(comunidade));
+        when(proprietarioRepository.findById(proprietarioId)).thenReturn(Optional.of(proprietario));
+
+        assertThrows(IllegalArgumentException.class, () -> propriedadeService.criar(new PropriedadeRequestDTO(
+                "Sítio Boa Vista", BigDecimal.TEN, null, proprietarioId, comunidadeId)));
+        verify(propriedadeRepository, never()).save(any());
+    }
+
+    @Test
+    void atualizarComEnderecoNaoAlteraOLogradouroAtual() {
+        Propriedade p = propriedade();
+        when(propriedadeRepository.findById(propriedadeId)).thenReturn(Optional.of(p));
+        when(logradouroRepository.save(any(Logradouro.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(propriedadeRepository.save(any(Propriedade.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PropriedadeResponseDTO resposta = propriedadeService.atualizar(propriedadeId, new PropriedadeRequestDTO(
+                "Sítio Boa Vista", BigDecimal.TEN, null, proprietarioId, comunidadeId, endereco()));
+
+        assertEquals("Mercês", resposta.logradouroMunicipio());
+        // o logradouro antigo pode ser compartilhado: fica como estava
+        assertEquals("Rio Pomba", logradouro.getMunicipio());
+    }
+
+    @Test
+    void atualizarSemEnderecoNemIdMantemOLogradouro() {
+        Propriedade p = propriedade();
+        when(propriedadeRepository.findById(propriedadeId)).thenReturn(Optional.of(p));
+        when(propriedadeRepository.save(any(Propriedade.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        propriedadeService.atualizar(propriedadeId, new PropriedadeRequestDTO(
+                "Sítio Boa Vista", BigDecimal.TEN, null, proprietarioId, comunidadeId));
+
+        assertSame(logradouro, p.getLogradouro());
+    }
+
+    @Test
+    void listarPorProprietarioUsaOFiltroDoRepositorio() {
+        when(propriedadeRepository.findByProprietarioIdOrderByDataCadastroDesc(proprietarioId))
+                .thenReturn(List.of(propriedade()));
+
+        List<PropriedadeResponseDTO> resultado = propriedadeService.listarPorProprietario(proprietarioId);
+
+        assertEquals(1, resultado.size());
+        assertEquals("Rio Pomba", resultado.get(0).endereco().getMunicipio());
+        verify(propriedadeRepository, never()).findAll();
     }
 }

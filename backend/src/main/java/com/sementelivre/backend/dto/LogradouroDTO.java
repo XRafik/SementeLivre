@@ -1,5 +1,7 @@
 package com.sementelivre.backend.dto;
 
+import com.sementelivre.backend.entity.Logradouro;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -85,5 +87,31 @@ public class LogradouroDTO {
 
     public void setCep(String cep) {
         this.cep = cep;
+    }
+
+    /** Novo logradouro com os dados deste endereço. */
+    public Logradouro paraEntidade() {
+        return Logradouro.builder()
+                .logradouro(logradouro)
+                .numero(numero)
+                .complemento(complemento)
+                .bairro(bairro)
+                .municipio(municipio)
+                .uf(uf)
+                .cep(cep)
+                .build();
+    }
+
+    public static LogradouroDTO de(Logradouro entidade) {
+        if (entidade == null) return null;
+        LogradouroDTO dto = new LogradouroDTO();
+        dto.setLogradouro(entidade.getLogradouro());
+        dto.setNumero(entidade.getNumero());
+        dto.setComplemento(entidade.getComplemento());
+        dto.setBairro(entidade.getBairro());
+        dto.setMunicipio(entidade.getMunicipio());
+        dto.setUf(entidade.getUf());
+        dto.setCep(entidade.getCep());
+        return dto;
     }
 }

@@ -13,6 +13,8 @@ import java.util.UUID;
 @Repository
 public interface PropriedadeRepository extends BaseRepository<Propriedade, UUID> {
 
+    List<Propriedade> findByProprietarioIdOrderByDataCadastroDesc(UUID proprietarioId);
+
     /**
      * Comunidades de um produtor (issue #91).
      *

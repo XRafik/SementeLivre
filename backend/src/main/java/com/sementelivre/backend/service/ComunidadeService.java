@@ -14,6 +14,7 @@ import com.sementelivre.backend.repository.LogradouroRepository;
 import com.sementelivre.backend.repository.PropriedadeRepository;
 import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 
@@ -41,10 +42,10 @@ public class ComunidadeService implements CrudService<ComunidadeRequestDTO, Comu
 
     //Criar
     @Override
+    @Transactional // o logradouro novo não fica órfão se a validação falhar
     @CacheEvict(value = "comunidades", allEntries = true)
     public ComunidadeResponseDTO criar(ComunidadeRequestDTO dto) {
-        Logradouro logradouro = logradouroRepository.findById(dto.logradouroId())
-                .orElseThrow(() -> new ResourceNotFoundException("Logradouro não encontrado com o id: " + dto.logradouroId()));
+        Logradouro logradouro = resolverLogradouro(dto, null);
 
         List<String> listaNomes = comunidadeRepository.findAllNames();
         String novoNome = dto.nome().toLowerCase(Locale.ROOT);
@@ -81,17 +82,15 @@ public class ComunidadeService implements CrudService<ComunidadeRequestDTO, Comu
     }
 
     @Override
+    @Transactional // o logradouro novo não fica órfão se a validação falhar
     @CacheEvict(value = "comunidades", allEntries = true)
     public ComunidadeResponseDTO atualizar(UUID id, ComunidadeRequestDTO dto) {
         Comunidade comunidade = buscarEntidadePorId(id);
 
         Logradouro logradouro = comunidade.getLogradouro();
 
-        //Verificação para caso o logradouro tenha sido atualizado também, se ele for atualizado ele entra no if, caso contrário ele ignora
-        if(!logradouro.getId().equals(dto.logradouroId())){
-            logradouro = logradouroRepository.findById(dto.logradouroId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Logradouro não encontrado: " + dto.logradouroId()));
-        }
+        //Verificação para caso o logradouro tenha sido atualizado também; sem endereço nem id, mantém o atual
+        logradouro = resolverLogradouro(dto, logradouro);
 
         if (!comunidade.getNome().equalsIgnoreCase(dto.nome())) {
             validarNomeNaoSimilar(dto.nome(), logradouro, comunidadeRepository.findAllNamesExceto(id));
@@ -118,6 +117,23 @@ public class ComunidadeService implements CrudService<ComunidadeRequestDTO, Comu
                             + propriedades.size() + " propriedade(s) vinculada(s): " + String.join(", ", propriedades) + ".");
         }
         comunidadeRepository.delete(comunidade);
+    }
+
+    /**
+     * O `endereco` enviado vira um logradouro novo; sem ele vale o `logradouroId`;
+     * sem nenhum dos dois, a atualização mantém o que já havia.
+     */
+    private Logradouro resolverLogradouro(ComunidadeRequestDTO dto, Logradouro atual) {
+        if (dto.endereco() != null) {
+            return logradouroRepository.save(dto.endereco().paraEntidade());
+        }
+        if (dto.logradouroId() != null) {
+            if (atual != null && atual.getId().equals(dto.logradouroId())) return atual;
+            return logradouroRepository.findById(dto.logradouroId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Logradouro não encontrado com o id: " + dto.logradouroId()));
+        }
+        if (atual != null) return atual;
+        throw new IllegalArgumentException("Informe o endereço da comunidade.");
     }
 
     //Transformando de entidade comunidade para ComunidadeResponseDTO
