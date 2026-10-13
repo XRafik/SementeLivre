@@ -83,9 +83,14 @@ Primeira execução local: **39 passaram, 4 marcados como fixme** (propriedade/c
 3. **Relatório some do histórico** quando é gerado antes da lista inicial de `/relatorios` chegar
    (corrida em `useRelatorios`; aparecia como falha intermitente). Corrigido no **PR #162**; o
    teste que reproduz a corrida fica em `fixme` até ele entrar.
-4. **`GET /relatorios` e `GET /estoques` devolvem os registros de todos os proprietários**: o
+4. **App travado em "Carregando sessão..."** ao renovar um token vencido: o React embutido no
+   Next 16.2.6 quebra (`Cannot read properties of null (reading 'querySelector')`) ao trocar a tela
+   de carregamento pelo conteúdo. Aparecia como falha intermitente de
+   `sessao.spec.ts › access token vencido...` (10 em 80 execuções com 8 workers; 0 em 80 no Next
+   16.4.0). Corrigido no **PR #167**.
+5. **`GET /relatorios` e `GET /estoques` devolvem os registros de todos os proprietários**: o
    front-app filtra no navegador pelo `proprietarioId` (ver comentários em `lib/relatorioApi.ts` e
    `lib/catalogoApi.ts`). Na Fase 4, restringir no backend como foi feito com os
    dados pessoais no #98.
-5. **Rate limit do pedido público** (10 pedidos por IP a cada 10 min) derruba suítes que fazem
+6. **Rate limit do pedido público** (10 pedidos por IP a cada 10 min) derruba suítes que fazem
    muitos pedidos; o CI sobe o backend com `PEDIDO_PUBLICO_LIMITE_POR_IP`/`POR_EMAIL` altos.
