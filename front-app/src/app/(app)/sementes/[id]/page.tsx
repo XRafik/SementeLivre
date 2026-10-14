@@ -6,7 +6,7 @@ import { Sprout, BarChart2, List, Pencil, Trash2, PackageSearch, ShoppingCart, C
 import { useSeeds } from '@/hooks/useSeeds';
 import { useOrders } from '@/hooks/useOrders';
 import { useToast } from '@/components/feedback/Toast';
-import { Estoque, DisponibilidadeLabels, PesagemLabels, TipoMovimentacao } from '@/types/stock';
+import { Estoque, DisponibilidadeLabels, DisponibilidadeProduto, PesagemLabels, TipoMovimentacao, TipoNegociavelLabels } from '@/types/stock';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -46,6 +46,11 @@ export default function SementeDetailPage() {
 
   if (loading) return <div className={styles.loading}><div className="skeleton" style={{ height: 200, borderRadius: 16 }} /></div>;
   if (!seed) return <EmptyState icon={<PackageSearch size={38} strokeWidth={1.5} />} title="Produto nao encontrado" actionLabel="Voltar" onAction={() => router.push('/sementes')} />;
+
+  const disponibilidadeAtual = (editForm.disponibilidade ?? seed.disponibilidade) as DisponibilidadeProduto;
+  const tipoNegociavelEdicao = TipoNegociavelLabels[disponibilidadeAtual];
+  const aceitaNegociacaoEdicao = editForm.aceitaNegociacao ?? seed.aceitaNegociacao ?? true;
+  const tipoNegociavel = TipoNegociavelLabels[seed.disponibilidade];
 
   const handleSave = async () => {
     setSaving(true);
@@ -111,6 +116,25 @@ export default function SementeDetailPage() {
           </div>
           
           <Select label="Disponibilidade" value={editForm.disponibilidade ?? seed.disponibilidade} onChange={(e) => setEditForm((p) => ({ ...p, disponibilidade: e.target.value as any }))} options={dispOptions} />
+
+          {tipoNegociavelEdicao && (
+            <div>
+              <Toggle
+                label="Negociação no site"
+                options={[
+                  { value: 'sim', label: 'Aceito propostas' },
+                  { value: 'nao', label: `Só ${tipoNegociavelEdicao}` },
+                ]}
+                value={aceitaNegociacaoEdicao ? 'sim' : 'nao'}
+                onChange={(v) => setEditForm((p) => ({ ...p, aceitaNegociacao: v === 'sim' }))}
+              />
+              <p className={styles.hint}>
+                {aceitaNegociacaoEdicao
+                  ? 'Quem pede pelo site pode propor venda, troca ou doação.'
+                  : `Quem pede pelo site só consegue fazer pedido de ${tipoNegociavelEdicao}.`}
+              </p>
+            </div>
+          )}
           
           <Input label="Preço (R$)" type="number" value={editForm.preco !== undefined ? String(editForm.preco) : String(seed.preco ?? '')} onChange={(e) => setEditForm((p) => ({ ...p, preco: e.target.value ? Number(e.target.value) : undefined }))} inputMode="decimal" step="0.01" placeholder="Opcional" />
           
@@ -139,6 +163,14 @@ export default function SementeDetailPage() {
                 <div className={styles.gridItem}>
                   <span className={styles.gridLabel}>Preco</span>
                   <span className={styles.gridValue}>R$ {seed.preco.toFixed(2)}</span>
+                </div>
+              )}
+              {tipoNegociavel && (
+                <div className={styles.gridItem}>
+                  <span className={styles.gridLabel}>Negociação no site</span>
+                  <span className={styles.gridValue}>
+                    {seed.aceitaNegociacao === false ? `Só ${tipoNegociavel}` : 'Aceita propostas'}
+                  </span>
                 </div>
               )}
             </div>

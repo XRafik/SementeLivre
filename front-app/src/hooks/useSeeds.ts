@@ -41,6 +41,7 @@ function juntar(produto: ProdutoDTO, estoque: EstoqueDTO): Estoque {
     // para os enums que as telas já usam.
     tipoPesagem: estoque.tipoPesagem as Pesagem,
     disponibilidade: estoque.disponibilidade as DisponibilidadeProduto,
+    aceitaNegociacao: estoque.aceitaNegociacao,
     tipo: estoque.tipoMovimentacao as TipoMovimentacao,
     dataMovimentacao: paraData(estoque.dataMovimentacao),
     dataUltimaAtualizacaoEstoque: paraData(estoque.dataUltimaAtualizacao),
@@ -131,6 +132,7 @@ export function useSeeds() {
         tipoPesagem: data.tipoPesagem,
         disponibilidade: data.disponibilidade,
         tipoMovimentacao: data.tipo,
+        aceitaNegociacao: data.aceitaNegociacao ?? true,
       });
 
       await recarregar();
@@ -146,7 +148,7 @@ export function useSeeds() {
 
       const {
         nomePopular, urlFoto, nomeCientifico, historico, tipoProduto, especie, formato,
-        descricao, preco, quantidade, tipoPesagem, disponibilidade,
+        descricao, preco, quantidade, tipoPesagem, disponibilidade, aceitaNegociacao,
       } = data;
 
       const mexeuNoProduto =
@@ -155,7 +157,7 @@ export function useSeeds() {
 
       const mexeuNoEstoque =
         descricao !== undefined || preco !== undefined || quantidade !== undefined ||
-        tipoPesagem !== undefined || disponibilidade !== undefined;
+        tipoPesagem !== undefined || disponibilidade !== undefined || aceitaNegociacao !== undefined;
 
       if (atual.idProprietario !== user?.uid) {
         throw new Error('Você só pode editar os seus próprios produtos.');
@@ -184,6 +186,7 @@ export function useSeeds() {
           tipoPesagem: tipoPesagem ?? atual.tipoPesagem,
           disponibilidade: disponibilidade ?? atual.disponibilidade,
           tipoMovimentacao: atual.tipo,
+          aceitaNegociacao: aceitaNegociacao ?? atual.aceitaNegociacao,
         });
       }
 

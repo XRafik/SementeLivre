@@ -72,6 +72,8 @@ export interface EstoqueDTO {
   tipoMovimentacao: TipoMovimentacaoDTO;
   dataMovimentacao: string;
   dataUltimaAtualizacao: string;
+  /** false: no site o pedido fica preso ao tipo da disponibilidade. */
+  aceitaNegociacao: boolean;
 }
 
 export interface EstoqueRequestDTO {
@@ -83,6 +85,7 @@ export interface EstoqueRequestDTO {
   tipoPesagem: PesagemDTO;
   disponibilidade: DisponibilidadeDTO;
   tipoMovimentacao: TipoMovimentacaoDTO;
+  aceitaNegociacao?: boolean;
 }
 
 // ── Produtos ───────────────────────────────────────────────────────────────────
