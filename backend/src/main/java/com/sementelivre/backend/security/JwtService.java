@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret:sementeLivreChaveSecretaSuperSeguraComMaisDe256Bits1234567890!}")
+    @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration:1800000}")

@@ -40,3 +40,7 @@ app:
 spring.servlet.multipart:
   max-file-size: 5MB
   max-request-size: 5MB
+
+jwt:
+  secret: ${JWT_SECRET:sementeLivreChaveSecretaSuperSeguraComMaisDe256Bits1234567890!}
+  expiration: 1800000

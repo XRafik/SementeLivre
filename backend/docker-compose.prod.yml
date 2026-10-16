@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-semente_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-semente_pass}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina a variavel DB_PASSWORD no .env}
       POSTGRES_DB: ${DB_NAME:-semente_prod}
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
@@ -25,32 +25,79 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME:-semente_prod}
-      SPRING_DATASOURCE_USERNAME: ${DB_USER:-semente_user}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-semente_pass}
-      # E-mail (cópia do pedido, recuperação de senha). Valores em backend/.env;
-      # sem MAIL_USERNAME/MAIL_PASSWORD nenhum e-mail é enviado.
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-semente_prod}
+      DB_USERNAME: ${DB_USER:-semente_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Defina a variavel JWT_SECRET no .env}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-1800000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-}
-    ports:
-      - "8080:8080"
+    volumes:
+      #Persistência de fotos cadastradas pelos produtores
+      - app_uploads_prod:/app/uploads
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/actuator/health"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 5
     networks:
       - app-network
 
+  #proxy reverso com HTTPS e emissão de certificados Let's Encrypt automática
+  caddy:
+    image: caddy:2-alpine
+    container_name: semente_livre_caddy_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME:-localhost}
+    command: caddy reverse-proxy --from ${DOMAIN_NAME:-localhost} --to app:8080
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  #Backup automático diário do PostgreSQL (retenção de 7 dias)
+  db-backup:
+    image: prodrigestivill/postgres-backup-local:15-alpine
+    container_name: semente_livre_backup_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${DB_NAME:-semente_prod}
+      POSTGRES_USER: ${DB_USER:-semente_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_SUFFIX: .sql.gz
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
 volumes:
   postgres_data_prod:
+  app_uploads_prod:
+  caddy_data:
+  caddy_config:
 
 networks:
   app-network:
     driver: bridge
+    
