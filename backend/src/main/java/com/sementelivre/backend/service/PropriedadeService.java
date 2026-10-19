@@ -1,5 +1,6 @@
 package com.sementelivre.backend.service;
 
+import com.sementelivre.backend.dto.LogradouroDTO;
 import com.sementelivre.backend.dto.PropriedadeRequestDTO;
 import com.sementelivre.backend.dto.PropriedadeResponseDTO;
 import com.sementelivre.backend.entity.Comunidade;
@@ -15,6 +16,7 @@ import com.sementelivre.backend.repository.LogradouroRepository;
 import com.sementelivre.backend.repository.PropriedadeRepository;
 import com.sementelivre.backend.repository.ProprietarioRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -42,10 +44,11 @@ public class PropriedadeService implements CrudService<PropriedadeRequestDTO, Pr
 
 
     @Override
+    @Transactional // o logradouro novo não fica órfão se a validação falhar
     public PropriedadeResponseDTO criar(PropriedadeRequestDTO dto) {
         Comunidade comunidade = buscaComunidadePorId(dto.comunidadeId());
         Proprietario proprietario = buscaProprietarioPorId(dto.proprietarioId());
-        Logradouro logradouro = buscarLogradouroPorId(dto.logradouroId());
+        Logradouro logradouro = resolverLogradouro(dto, null);
 
         Propriedade propriedade = Propriedade.builder()
                 .nome(dto.nome())
@@ -77,7 +80,21 @@ public class PropriedadeService implements CrudService<PropriedadeRequestDTO, Pr
                 .toList();
     }
 
+    /** Usado no @PreAuthorize do controller: a propriedade existe e é desse proprietário. */
+    public boolean ehDoProprietario(UUID propriedadeId, UUID proprietarioId) {
+        return propriedadeRepository.existsByIdAndProprietarioId(propriedadeId, proprietarioId);
+    }
+
+    /** Propriedades de um proprietário, mais recentes primeiro. */
+    public List<PropriedadeResponseDTO> listarPorProprietario(UUID proprietarioId) {
+        return propriedadeRepository.findByProprietarioIdOrderByDataCadastroDesc(proprietarioId)
+                .stream()
+                .map(this::toResponseDTO)
+                .toList();
+    }
+
     @Override
+    @Transactional // o logradouro novo não fica órfão se a validação falhar
     public PropriedadeResponseDTO atualizar(UUID id, PropriedadeRequestDTO dto) {
         Propriedade propriedade = buscaPropriedadePorId(id);
         Comunidade comunidade = propriedade.getComunidade();
@@ -95,10 +112,7 @@ public class PropriedadeService implements CrudService<PropriedadeRequestDTO, Pr
                     .orElseThrow(() -> new ResourceNotFoundException("Proprietário não encontrado: " + dto.proprietarioId()));
         }
 
-        if(!logradouro.getId().equals(dto.logradouroId())){
-            logradouro = logradouroRepository.findById(dto.logradouroId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Logradouro não encontrado: " + dto.logradouroId()));
-        }
+        logradouro = resolverLogradouro(dto, logradouro);
 
         //Preenchendo Propriedade:
         propriedade.setNome(dto.nome());
@@ -134,6 +148,7 @@ public class PropriedadeService implements CrudService<PropriedadeRequestDTO, Pr
 
     //Transformando da Entidade propriedade para PropriedadeResponseDTO
     private  PropriedadeResponseDTO toResponseDTO(Propriedade propriedade){
+        Logradouro logradouro = propriedade.getLogradouro();
 
         return new PropriedadeResponseDTO(
                 propriedade.getId(),
@@ -145,8 +160,9 @@ public class PropriedadeService implements CrudService<PropriedadeRequestDTO, Pr
                 propriedade.getProprietario().getNome(),
                 propriedade.getComunidade().getId(),
                 propriedade.getComunidade().getNome(),
-                propriedade.getLogradouro().getUf(),
-                propriedade.getLogradouro().getMunicipio()
+                logradouro != null ? logradouro.getUf() : null,
+                logradouro != null ? logradouro.getMunicipio() : null,
+                LogradouroDTO.de(logradouro)
         );
     }
 
@@ -174,6 +190,23 @@ public class PropriedadeService implements CrudService<PropriedadeRequestDTO, Pr
                 .orElseThrow(() -> new ResourceNotFoundException("Proprietário não encontrado com id: " + id));
 
         return proprietario;
+    }
+
+    /**
+     * Endereço da propriedade: o `endereco` enviado vira um logradouro novo (não
+     * altera o atual, que pode ser compartilhado); sem ele vale o `logradouroId`;
+     * sem nenhum dos dois, a atualização mantém o que já havia.
+     */
+    private Logradouro resolverLogradouro(PropriedadeRequestDTO dto, Logradouro atual){
+        if (dto.endereco() != null) {
+            return logradouroRepository.save(dto.endereco().paraEntidade());
+        }
+        if (dto.logradouroId() != null) {
+            if (atual != null && atual.getId().equals(dto.logradouroId())) return atual;
+            return buscarLogradouroPorId(dto.logradouroId());
+        }
+        if (atual != null) return atual;
+        throw new IllegalArgumentException("Informe o endereço da propriedade.");
     }
 
     private Logradouro buscarLogradouroPorId(UUID id){
