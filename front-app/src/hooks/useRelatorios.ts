@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { criarRelatorio, listarRelatorios, type RelatorioDTO, type TipoRelatorioDTO } from '@/lib/relatorioApi';
 import { useAuth } from '@/context/AuthContext';
 
@@ -24,9 +24,14 @@ export function useRelatorios() {
   const { user } = useAuth();
   const [relatorios, setRelatorios] = useState<RelatorioEmitido[]>([]);
   const [loading, setLoading] = useState(false);
+  // Emissões registradas nesta tela. Se o usuário gerar um relatório antes da
+  // lista inicial chegar, a resposta (pedida antes da emissão) não traz o novo
+  // e o apagaria do histórico; por isso ele é mesclado de volta.
+  const emitidosAqui = useRef<RelatorioEmitido[]>([]);
 
   const recarregar = useCallback(async () => {
     if (!user) {
+      emitidosAqui.current = [];
       setRelatorios([]);
       return;
     }
@@ -34,10 +39,10 @@ export function useRelatorios() {
     try {
       // O endpoint devolve todos; filtramos pelos do dono logado.
       const todos = await listarRelatorios();
+      const doBackend = todos.filter((r) => r.proprietarioId === user.uid).map(paraRelatorio);
+      const ids = new Set(doBackend.map((r) => r.idRelatorio));
       setRelatorios(
-        todos
-          .filter((r) => r.proprietarioId === user.uid)
-          .map(paraRelatorio)
+        [...doBackend, ...emitidosAqui.current.filter((r) => !ids.has(r.idRelatorio))]
           .sort((a, b) => b.dataGeracao.getTime() - a.dataGeracao.getTime())
       );
     } catch {
@@ -59,6 +64,7 @@ export function useRelatorios() {
       if (!user) throw new Error('Sessão expirada. Faça login novamente.');
       const dto = await criarRelatorio({ tipo, filtrosUtilizados: filtros, proprietarioId: user.uid });
       const registrado = paraRelatorio(dto);
+      emitidosAqui.current = [registrado, ...emitidosAqui.current];
       setRelatorios((atuais) => [registrado, ...atuais]);
       return registrado;
     },
