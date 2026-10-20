@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -24,6 +26,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/produtos")
+@Tag(name = "Produtos", description = "Catálogo compartilhado de sementes e mudas, com upload de foto.")
 public class ProdutoController {
 
     private final ProdutoService produtoService;

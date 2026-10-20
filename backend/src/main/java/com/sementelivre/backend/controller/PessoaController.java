@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.sementelivre.backend.dto.LogradouroDTO;
 import com.sementelivre.backend.dto.PessoaResponseDTO;
 import com.sementelivre.backend.dto.PessoaUpdateRequestDTO;
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/pessoas")
+@Tag(name = "Pessoas", description = "Dados pessoais (titular ou admin) e exclusão de conta (LGPD).")
 public class PessoaController {
 
     private final PessoaService pessoaService;

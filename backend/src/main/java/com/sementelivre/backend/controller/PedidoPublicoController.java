@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,6 +20,7 @@ import jakarta.validation.Valid;
 /** Pedido feito pelo site público (front-site), sem login. */
 @RestController
 @RequestMapping("/catalogo/pedidos")
+@Tag(name = "Pedido público", description = "Pedido feito pelo site público, sem conta; limitado por e-mail e IP.")
 public class PedidoPublicoController {
 
     private final PedidoService pedidoService;

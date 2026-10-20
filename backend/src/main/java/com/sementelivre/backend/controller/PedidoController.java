@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -31,6 +33,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/pedidos")
+@Tag(name = "Pedidos", description = "Pedidos do proprietário: registrar, confirmar, cancelar e histórico.")
 public class PedidoController {
 
     private final PedidoService pedidoService;

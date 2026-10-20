@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 import com.sementelivre.backend.dto.PropriedadeRequestDTO;
 import com.sementelivre.backend.dto.PropriedadeResponseDTO;
@@ -16,6 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/propriedades")
+@Tag(name = "Propriedades", description = "Propriedades rurais do proprietário, vinculadas a uma comunidade.")
 public class PropriedadeController {
 
     private final PropriedadeService propriedadeService;

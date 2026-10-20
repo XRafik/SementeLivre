@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.sementelivre.backend.dto.UsuarioResponseDTO;
 import com.sementelivre.backend.service.UsuarioService;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/usuarios")
+@Tag(name = "Usuários", description = "Contas de login (admin).")
 public class UsuarioController {
 
     private final UsuarioService usuarioService;

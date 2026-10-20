@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.sementelivre.backend.dto.ProprietarioCreateRequestDTO;
 import com.sementelivre.backend.dto.ProprietarioResponseDTO;
 import com.sementelivre.backend.dto.PessoaUpdateRequestDTO;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/proprietarios")
+@Tag(name = "Proprietários", description = "Dados do proprietário (titular ou admin).")
 public class ProprietarioController {
 
     private final ProprietarioService proprietarioService;
