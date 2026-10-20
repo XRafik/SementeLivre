@@ -1,4 +1,4 @@
-package com.sementelivre.backend.entity.repository;
+package com.sementelivre.backend.repository;
 
 import java.util.List;
 import java.util.Optional;
@@ -6,7 +6,6 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -19,7 +18,7 @@ import com.sementelivre.backend.entity.enums.TipoProduto;
 
 import jakarta.persistence.LockModeType;
 
-public interface EstoqueRepository extends JpaRepository<Estoque, UUID> {
+public interface EstoqueRepository extends BaseRepository<Estoque, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

@@ -28,8 +28,8 @@ import com.sementelivre.backend.entity.Proprietario;
 import com.sementelivre.backend.entity.enums.Disponibilidade;
 import com.sementelivre.backend.entity.enums.Pesagem;
 import com.sementelivre.backend.entity.enums.TipoMovimentacao;
-import com.sementelivre.backend.entity.repository.EstoqueRepository;
-import com.sementelivre.backend.entity.repository.ProdutoRepository;
+import com.sementelivre.backend.repository.EstoqueRepository;
+import com.sementelivre.backend.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 import com.sementelivre.backend.repository.MovimentacaoRepository;
 

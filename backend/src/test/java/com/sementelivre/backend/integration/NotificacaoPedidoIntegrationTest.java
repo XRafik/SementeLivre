@@ -15,8 +15,8 @@ import com.sementelivre.backend.dto.PedidoResponseDTO;
 import com.sementelivre.backend.entity.Estoque;
 import com.sementelivre.backend.entity.Notificacao;
 import com.sementelivre.backend.entity.enums.StatusPedido;
-import com.sementelivre.backend.entity.repository.EstoqueRepository;
-import com.sementelivre.backend.entity.repository.PedidoRepository;
+import com.sementelivre.backend.repository.EstoqueRepository;
+import com.sementelivre.backend.repository.PedidoRepository;
 import com.sementelivre.backend.repository.NotificacaoRepository;
 import com.sementelivre.backend.service.EstoqueService;
 import com.sementelivre.backend.service.PedidoService;
@@ -33,7 +33,7 @@ class NotificacaoPedidoIntegrationTest extends AbstractPostgresIntegrationTest {
     private EntityManager entityManager;
 
     @Autowired
-    private com.sementelivre.backend.entity.repository.ProdutoRepository produtoRepository;
+    private com.sementelivre.backend.repository.ProdutoRepository produtoRepository;
 
     @Autowired
     private EstoqueService estoqueService;

@@ -13,7 +13,7 @@ import com.sementelivre.backend.entity.Estoque;
 import com.sementelivre.backend.entity.Logradouro;
 import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.Proprietario;
-import com.sementelivre.backend.entity.repository.EstoqueRepository;
+import com.sementelivre.backend.repository.EstoqueRepository;
 import com.sementelivre.backend.exception.ResourceNotFoundException;
 import com.sementelivre.backend.repository.PropriedadeRepository;
 import com.sementelivre.backend.repository.ProprietarioRepository;
