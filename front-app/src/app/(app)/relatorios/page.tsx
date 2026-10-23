@@ -85,7 +85,7 @@ export default function RelatoriosPage() {
     setExportando(true);
     try {
       const { baixarRelatorioPdf } = await import('@/lib/pdf');
-      baixarRelatorioPdf({
+      await baixarRelatorioPdf({
         tipo,
         filtroDisponibilidade: filtroDisp,
         filtroStatus,

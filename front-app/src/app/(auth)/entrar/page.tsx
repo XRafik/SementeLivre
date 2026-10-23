@@ -18,6 +18,7 @@ import { useToast } from '@/components/feedback/Toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AnimatedSeedsSVG } from '@/components/icons/AnimatedSeedsSVG';
+import { InstitutionalLogo } from '@/components/shared/InstitutionalLogo';
 import styles from './entrar.module.css';
 import authStyles from '../auth.module.css';
 
@@ -123,6 +124,8 @@ export default function EntrarPage() {
           Ainda não tem conta?{' '}
           <Link href="/cadastrar">Cadastre-se</Link>
         </p>
+
+        <InstitutionalLogo />
       </div>
     </div>
   );

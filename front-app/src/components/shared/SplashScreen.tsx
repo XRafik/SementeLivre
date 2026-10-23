@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { InstitutionalLogo } from './InstitutionalLogo';
 import styles from './SplashScreen.module.css';
 
 /**
@@ -38,6 +39,7 @@ export function SplashScreen() {
         <p className={styles.slogan}>Banco comunitário de sementes</p>
       </div>
       <span className={styles.ponto} aria-hidden="true" />
+      <InstitutionalLogo card />
     </div>
   );
 }

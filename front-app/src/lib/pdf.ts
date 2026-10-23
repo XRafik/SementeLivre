@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DisponibilidadeLabels, type Estoque } from '@/types/stock';
 import { TipoPedidoLabels, StatusPedidoLabels, type Pedido } from '@/types/order';
+import { LOGOS_IF } from '@/lib/institutionalLogo';
 
 export type PdfTipo = 'ESTOQUE' | 'PEDIDOS';
 
@@ -28,16 +29,38 @@ function dataDeBr(d: Date): string {
   return d.toLocaleDateString('pt-BR');
 }
 
+/** Bytes do PNG da logo do IF; sem ela (ex.: offline) o relatório sai mesmo assim. */
+async function carregarLogoIF(): Promise<Uint8Array | null> {
+  try {
+    const res = await fetch(LOGOS_IF.divisoria.src);
+    if (!res.ok) return null;
+    return new Uint8Array(await res.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Monta o PDF no navegador e dispara o download.
  * Não há endpoint de PDF no backend: o arquivo é gerado no cliente a partir
  * dos mesmos dados que a prévia exibe, e a emissão já foi registrada em /relatorios.
  */
-export function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroStatus, dataInicio, dataFim, seeds, orders }: PdfContexto): void {
+export async function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroStatus, dataInicio, dataFim, seeds, orders }: PdfContexto): Promise<void> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const ehEstoque = tipo === 'ESTOQUE';
 
   // ── Cabeçalho ────────────────────────────────────────────────────────────
+  // Logo do IF no canto direito, na proporção do arquivo. Com 15mm de altura o símbolo
+  // fica com ~9mm de largura (~34px), acima do mínimo de 30px do manual da marca.
+  // 'SLOW' é compressão sem perda: sem ela o PNG entra cru e o PDF passa de 4 MB.
+  const logoIF = await carregarLogoIF();
+  if (logoIF) {
+    const { largura, altura } = LOGOS_IF.divisoria;
+    const alturaMm = 15;
+    const larguraMm = (alturaMm * largura) / altura;
+    doc.addImage(logoIF, 'PNG', doc.internal.pageSize.getWidth() - 14 - larguraMm, 8, larguraMm, alturaMm, undefined, 'SLOW');
+  }
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(47, 158, 65);
