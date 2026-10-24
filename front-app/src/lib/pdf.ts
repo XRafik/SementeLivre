@@ -14,6 +14,7 @@ interface PdfContexto {
   filtroEspecie?: string;
   filtroStatus?: string;
   filtroTipo?: string;
+  nomeSemente?: string;
   dataInicio?: string;
   dataFim?: string;
   seeds: Estoque[];
@@ -36,7 +37,7 @@ function dataDeBr(d: Date): string {
  * Não há endpoint de PDF no backend: o arquivo é gerado no cliente a partir
  * dos mesmos dados que a prévia exibe, e a emissão já foi registrada em /relatorios.
  */
-export function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroEspecie, filtroStatus, filtroTipo, dataInicio, dataFim, seeds, orders }: PdfContexto): void {
+export function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroEspecie, filtroStatus, filtroTipo, nomeSemente, dataInicio, dataFim, seeds, orders }: PdfContexto): void {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const ehEstoque = tipo === 'ESTOQUE';
 
@@ -67,6 +68,7 @@ export function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroEspecie,
     if (filtroTipo && filtroTipo !== 'TODOS') {
       filtros.push(`Tipo: ${TipoPedidoLabels[filtroTipo as keyof typeof TipoPedidoLabels]}`);
     }
+    if (nomeSemente) filtros.push(`Semente: ${nomeSemente}`);
     if (dataInicio) filtros.push(`De: ${formatarDataBr(dataInicio)}`);
     if (dataFim) filtros.push(`Até: ${formatarDataBr(dataFim)}`);
   }

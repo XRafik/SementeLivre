@@ -8,6 +8,7 @@ import { isApiError } from '@/lib/api';
 import { Toggle } from '@/components/ui/toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { DisponibilidadeLabels } from '@/types/stock';
 import { EspecieGeralLabels } from '@/types/seed';
@@ -37,6 +38,7 @@ export default function RelatoriosPage() {
   const [filtroStatus, setFiltroStatus] = useState('TODOS');
   const [filtroEspecie, setFiltroEspecie] = useState('TODOS');
   const [filtroTipo, setFiltroTipo] = useState('TODOS');
+  const [filtroSemente, setFiltroSemente] = useState('TODOS');
   const [generated, setGenerated] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [exportando, setExportando] = useState(false);
@@ -45,6 +47,7 @@ export default function RelatoriosPage() {
   const dispOptions = [{ value: 'TODOS', label: 'Todas' }, ...Object.entries(DisponibilidadeLabels).map(([v, l]) => ({ value: v, label: l }))];
   const statusOptions = [{ value: 'TODOS', label: 'Todos' }, ...Object.entries(StatusPedidoLabels).map(([v, l]) => ({ value: v, label: l }))];
   const especieOptions = [{ value: 'TODOS', label: 'Todas' }, ...Object.entries(EspecieGeralLabels).map(([v, l]) => ({ value: v, label: l }))];
+  const sementeOptions = [{ value: 'TODOS', label: 'Todas' }, ...seeds.map((s) => ({ value: s.idProduto, label: s.nomePopular }))];
   const tipoPedidoOptions = [{ value: 'TODOS', label: 'Todos' }, ...Object.entries(TipoPedidoLabels).map(([v, l]) => ({ value: v, label: l }))];
 
   const filteredSeeds = seeds.filter((s) => {
@@ -55,12 +58,13 @@ export default function RelatoriosPage() {
   const filteredOrders = orders.filter((o) => {
     const matchStatus = filtroStatus === 'TODOS' || o.status === filtroStatus;
     const matchTipo = filtroTipo === 'TODOS' || o.tipoPedido === filtroTipo;
+    const matchSemente = filtroSemente === 'TODOS' || o.itens.some((item) => item.idProduto === filtroSemente);
     const dt = o.dataPedido;
     // Com o 'T00:00:00' a data é lida no horário local. Sem ele o navegador lê
     // em UTC, e no Brasil isso vira 21h do dia anterior.
     const matchStart = !dataInicio || dt >= new Date(dataInicio + 'T00:00:00');
     const matchEnd = !dataFim || dt <= new Date(dataFim + 'T23:59:59');
-    return matchStatus && matchTipo && matchStart && matchEnd;
+    return matchStatus && matchTipo && matchSemente && matchStart && matchEnd;
   });
 
   // Mudou um filtro: esconde a prévia até gerar de novo. Assim o número de
@@ -89,6 +93,7 @@ export default function RelatoriosPage() {
           filtroEspecie: filtroEspecie,
           filtroStatus: filtroStatus,
           filtroTipo: filtroTipo,
+          filtroSemente: filtroSemente,
           dataInicio: dataInicio || null,
           dataFim: dataFim || null,
           totalRegistros: data.length,
@@ -112,12 +117,14 @@ export default function RelatoriosPage() {
     setExportando(true);
     try {
       const { baixarRelatorioPdf } = await import('@/lib/pdf');
+      const semente = seeds.find((s) => s.idProduto === filtroSemente);
       baixarRelatorioPdf({
         tipo,
         filtroDisponibilidade: filtroDisp,
         filtroEspecie,
         filtroStatus,
         filtroTipo,
+        nomeSemente: semente ? semente.nomePopular : undefined,
         dataInicio,
         dataFim,
         seeds: filteredSeeds,
@@ -193,6 +200,7 @@ export default function RelatoriosPage() {
                 <button key={f.value} className={`${styles.chip} ${filtroTipo === f.value ? styles.chipActive : ''}`} onClick={() => mudarFiltro(() => setFiltroTipo(f.value))} aria-pressed={filtroTipo === f.value}>{f.label}</button>
               ))}
             </div>
+            <Select label="Semente" options={sementeOptions} value={filtroSemente} onChange={(e) => mudarFiltro(() => setFiltroSemente(e.target.value))} />
           </>
         )}
         <Button variant="primary" fullWidth onClick={handleGenerate} loading={gerando}>

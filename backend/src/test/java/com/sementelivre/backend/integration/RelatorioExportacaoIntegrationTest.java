@@ -95,6 +95,18 @@ class RelatorioExportacaoIntegrationTest extends AbstractAuthIntegrationTest {
     }
 
     @Test
+    void relatorioDePedidosDeveAceitarOFiltroDeSemente() throws Exception {
+        Conta conta = cadastrar();
+        String token = login(conta.email(), SENHA);
+
+        mockMvc.perform(get(PEDIDOS_CSV)
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .param("proprietarioId", conta.id())
+                        .param("produtoId", UUID.randomUUID().toString()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void filtroComValorInvalidoDeveResponder400() throws Exception {
         Conta conta = cadastrar();
         String token = login(conta.email(), SENHA);

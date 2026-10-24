@@ -47,14 +47,15 @@ public class RelatorioPedidoService {
             LocalDate dataInicio,
             LocalDate dataFim,
             TipoPedido tipoPedido,
-            StatusPedido status) {
+            StatusPedido status,
+            UUID produtoId) {
 
         List<Pedido> pedidos = pedidoRepository.findAllByProprietarioRecebedorId(proprietarioId);
 
         List<String[]> linhas = new ArrayList<>();
 
         for (Pedido pedido : pedidos) {
-            if (passaNosFiltros(pedido, dataInicio, dataFim, tipoPedido, status)) {
+            if (passaNosFiltros(pedido, dataInicio, dataFim, tipoPedido, status, produtoId)) {
                 linhas.add(montarLinha(pedido));
             }
         }
@@ -67,7 +68,8 @@ public class RelatorioPedidoService {
             LocalDate dataInicio,
             LocalDate dataFim,
             TipoPedido tipoPedido,
-            StatusPedido status) {
+            StatusPedido status,
+            UUID produtoId) {
 
         LocalDate dataDoPedido = pedido.getDataPedido() == null ? null : pedido.getDataPedido().toLocalDate();
 
@@ -87,7 +89,25 @@ public class RelatorioPedidoService {
             return false;
         }
 
+        if (produtoId != null && !temProduto(pedido, produtoId)) {
+            return false;
+        }
+
         return true;
+    }
+
+    private boolean temProduto(Pedido pedido, UUID produtoId) {
+        if (pedido.getItens() == null) {
+            return false;
+        }
+
+        for (Itens item : pedido.getItens()) {
+            if (item.getProduto() != null && produtoId.equals(item.getProduto().getId())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private String[] montarLinha(Pedido pedido) {

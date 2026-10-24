@@ -90,10 +90,11 @@ public class RelatorioExportacaoController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
             @RequestParam(required = false) TipoPedido tipoPedido,
-            @RequestParam(required = false) StatusPedido status) {
+            @RequestParam(required = false) StatusPedido status,
+            @RequestParam(required = false) UUID produtoId) {
 
         List<String[]> linhas = relatorioPedidoService.montarLinhas(
-                proprietarioId, dataInicio, dataFim, tipoPedido, status);
+                proprietarioId, dataInicio, dataFim, tipoPedido, status, produtoId);
 
         byte[] arquivo = RelatorioPdf.gerar(
                 RelatorioPedidoService.TITULO, RelatorioPedidoService.CABECALHOS, linhas);
@@ -108,10 +109,11 @@ public class RelatorioExportacaoController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
             @RequestParam(required = false) TipoPedido tipoPedido,
-            @RequestParam(required = false) StatusPedido status) {
+            @RequestParam(required = false) StatusPedido status,
+            @RequestParam(required = false) UUID produtoId) {
 
         List<String[]> linhas = relatorioPedidoService.montarLinhas(
-                proprietarioId, dataInicio, dataFim, tipoPedido, status);
+                proprietarioId, dataInicio, dataFim, tipoPedido, status, produtoId);
 
         byte[] arquivo = RelatorioCsv.gerar(RelatorioPedidoService.CABECALHOS, linhas);
 
