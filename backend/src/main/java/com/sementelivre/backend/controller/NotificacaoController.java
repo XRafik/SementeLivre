@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sementelivre.backend.dto.ContagemNaoLidasDTO;
@@ -45,16 +44,10 @@ public class NotificacaoController {
         );
     }
 
-    // READ - todas, ou so as de um proprietario (mais recentes primeiro)
+    // READ - as do usuario logado (mais recentes primeiro).
+    // O antigo ?proprietarioId= foi removido: deixava ler as de outra pessoa.
     @GetMapping
-    public ResponseEntity<List<NotificacaoResponseDTO>> listar(
-            @RequestParam(required = false) UUID proprietarioId) {
-
-        if (proprietarioId != null) {
-            return ResponseEntity.ok(
-                    notificacaoService.listarPorProprietario(proprietarioId)
-            );
-        }
+    public ResponseEntity<List<NotificacaoResponseDTO>> listar() {
 
         return ResponseEntity.ok(
                 notificacaoService.listar()
@@ -103,6 +96,16 @@ public class NotificacaoController {
 
         return ResponseEntity.ok(
                 notificacaoService.marcarComoLida(id)
+        );
+    }
+
+    // UPDATE - marcar como nao lida
+    @PatchMapping("/{id}/nao-lida")
+    public ResponseEntity<NotificacaoResponseDTO> marcarComoNaoLida(
+            @PathVariable UUID id) {
+
+        return ResponseEntity.ok(
+                notificacaoService.marcarComoNaoLida(id)
         );
     }
 

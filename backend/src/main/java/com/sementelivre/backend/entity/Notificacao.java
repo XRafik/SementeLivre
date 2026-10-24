@@ -98,4 +98,10 @@ public class Notificacao {
             this.dataLeitura = LocalDateTime.now();
         }
     }
+
+    // Volta para nao lida e apaga a data de leitura junto
+    public void marcarComoNaoLida() {
+        this.lida = false;
+        this.dataLeitura = null;
+    }
 }
