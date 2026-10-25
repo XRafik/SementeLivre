@@ -34,6 +34,7 @@ class RelatorioPedidoServiceTest {
     private RelatorioPedidoService relatorioPedidoService;
 
     private UUID proprietarioId;
+    private UUID feijaoId;
     private Pedido pedidoTrocaConfirmado;
     private Pedido pedidoVendaCancelado;
 
@@ -42,6 +43,7 @@ class RelatorioPedidoServiceTest {
         relatorioPedidoService = new RelatorioPedidoService(pedidoRepository);
 
         proprietarioId = UUID.randomUUID();
+        feijaoId = UUID.randomUUID();
 
         pedidoTrocaConfirmado = pedido(
                 LocalDateTime.of(2026, 1, 10, 9, 0), TipoPedido.TROCA, StatusPedido.CONFIRMADO, "Maria Silva");
@@ -56,7 +58,7 @@ class RelatorioPedidoServiceTest {
         Usuario solicitante = mock(Usuario.class);
         lenient().when(solicitante.getNome()).thenReturn(nomeSolicitante);
 
-        Produto feijao = Produto.builder().nomePopular("Feijao Crioulo").build();
+        Produto feijao = Produto.builder().id(feijaoId).nomePopular("Feijao Crioulo").build();
 
         return Pedido.builder()
                 .id(UUID.randomUUID())
@@ -76,7 +78,7 @@ class RelatorioPedidoServiceTest {
     }
 
     private List<String[]> linhas(LocalDate inicio, LocalDate fim, TipoPedido tipo, StatusPedido status) {
-        return relatorioPedidoService.montarLinhas(proprietarioId, inicio, fim, tipo, status);
+        return relatorioPedidoService.montarLinhas(proprietarioId, inicio, fim, tipo, status, null);
     }
 
     @Test
@@ -115,6 +117,30 @@ class RelatorioPedidoServiceTest {
 
         assertEquals(1, resultado.size());
         assertEquals("CONFIRMADO", resultado.get(0)[2]);
+    }
+
+    @Test
+    void deveFiltrarPorSemente() {
+        Produto milho = Produto.builder().id(UUID.randomUUID()).nomePopular("Milho").build();
+        Pedido pedidoDeMilho = pedido(LocalDateTime.of(2026, 2, 1, 9, 0), TipoPedido.DOACAO, StatusPedido.PENDENTE, "Ana");
+        pedidoDeMilho.setItens(List.of(Itens.builder().produto(milho).quantidade(3.0).build()));
+        repositorioDevolve(pedidoTrocaConfirmado, pedidoVendaCancelado, pedidoDeMilho);
+
+        List<String[]> soMilho = relatorioPedidoService.montarLinhas(proprietarioId, null, null, null, null, milho.getId());
+        List<String[]> soFeijao = relatorioPedidoService.montarLinhas(proprietarioId, null, null, null, null, feijaoId);
+
+        assertEquals(1, soMilho.size());
+        assertEquals("3 x Milho", soMilho.get(0)[4]);
+        assertEquals(2, soFeijao.size());
+    }
+
+    @Test
+    void semPedidoComASementeDeveDevolverListaVazia() {
+        repositorioDevolve(pedidoTrocaConfirmado, pedidoVendaCancelado);
+
+        List<String[]> resultado = relatorioPedidoService.montarLinhas(proprietarioId, null, null, null, null, UUID.randomUUID());
+
+        assertTrue(resultado.isEmpty());
     }
 
     @Test
