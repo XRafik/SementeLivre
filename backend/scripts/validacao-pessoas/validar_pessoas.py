@@ -377,6 +377,9 @@ class Validacao:
         email_final = me.json.get("email") if isinstance(me.json, dict) else None
         if resp.status == 200:
             e.email = email_final or novo_email
+            # O token antigo leva o e-mail velho e passa a dar 401. Sem trocar, a
+            # limpeza (sem credenciais de admin) não excluía esta conta.
+            e.token = token_novo
         self.r.checar("CRUD-17", "crud", "Troca do próprio e-mail: grava normalizado e a sessão segue pelo refresh",
                       f"PUT 200; refresh 200; /auth/me email={novo_email}",
                       f"PUT {resp.status}; refresh {renovado.status}; /auth/me {me.status} email={email_final}",
