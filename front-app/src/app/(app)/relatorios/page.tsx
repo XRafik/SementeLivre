@@ -10,12 +10,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DisponibilidadeLabels } from '@/types/stock';
+import { EspecieGeralLabels } from '@/types/seed';
 import { TipoPedidoLabels, StatusPedidoLabels } from '@/types/order';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { useToast } from '@/components/feedback/Toast';
 import styles from './relatorios.module.css';
 
 type ReportType = 'ESTOQUE' | 'PEDIDOS';
+
+// Coloca o texto entre aspas para o CSV. Aspas dentro do texto viram aspas
+// duplas, senão um nome como Feijão "Carioca" quebra as colunas.
+function textoCsv(valor: string): string {
+  return '"' + valor.replaceAll('"', '""') + '"';
+}
 
 export default function RelatoriosPage() {
   const { seeds } = useSeeds();
@@ -28,6 +35,8 @@ export default function RelatoriosPage() {
   const [dataFim, setDataFim] = useState('');
   const [filtroDisp, setFiltroDisp] = useState('TODOS');
   const [filtroStatus, setFiltroStatus] = useState('TODOS');
+  const [filtroEspecie, setFiltroEspecie] = useState('TODOS');
+  const [filtroTipo, setFiltroTipo] = useState('TODOS');
   const [generated, setGenerated] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [exportando, setExportando] = useState(false);
@@ -35,15 +44,31 @@ export default function RelatoriosPage() {
   const tipoOptions = [{ value: 'ESTOQUE', label: '📊 Estoque' }, { value: 'PEDIDOS', label: '📋 Pedidos' }];
   const dispOptions = [{ value: 'TODOS', label: 'Todas' }, ...Object.entries(DisponibilidadeLabels).map(([v, l]) => ({ value: v, label: l }))];
   const statusOptions = [{ value: 'TODOS', label: 'Todos' }, ...Object.entries(StatusPedidoLabels).map(([v, l]) => ({ value: v, label: l }))];
+  const especieOptions = [{ value: 'TODOS', label: 'Todas' }, ...Object.entries(EspecieGeralLabels).map(([v, l]) => ({ value: v, label: l }))];
+  const tipoPedidoOptions = [{ value: 'TODOS', label: 'Todos' }, ...Object.entries(TipoPedidoLabels).map(([v, l]) => ({ value: v, label: l }))];
 
-  const filteredSeeds = seeds.filter((s) => filtroDisp === 'TODOS' || s.disponibilidade === filtroDisp);
+  const filteredSeeds = seeds.filter((s) => {
+    const matchDisp = filtroDisp === 'TODOS' || s.disponibilidade === filtroDisp;
+    const matchEspecie = filtroEspecie === 'TODOS' || s.especie === filtroEspecie;
+    return matchDisp && matchEspecie;
+  });
   const filteredOrders = orders.filter((o) => {
     const matchStatus = filtroStatus === 'TODOS' || o.status === filtroStatus;
+    const matchTipo = filtroTipo === 'TODOS' || o.tipoPedido === filtroTipo;
     const dt = o.dataPedido;
-    const matchStart = !dataInicio || dt >= new Date(dataInicio);
+    // Com o 'T00:00:00' a data é lida no horário local. Sem ele o navegador lê
+    // em UTC, e no Brasil isso vira 21h do dia anterior.
+    const matchStart = !dataInicio || dt >= new Date(dataInicio + 'T00:00:00');
     const matchEnd = !dataFim || dt <= new Date(dataFim + 'T23:59:59');
-    return matchStatus && matchStart && matchEnd;
+    return matchStatus && matchTipo && matchStart && matchEnd;
   });
+
+  // Mudou um filtro: esconde a prévia até gerar de novo. Assim o número de
+  // registros da prévia é sempre o mesmo que ficou salvo no histórico.
+  const mudarFiltro = (alterar: () => void) => {
+    alterar();
+    setGenerated(false);
+  };
 
   const data = tipo === 'ESTOQUE' ? filteredSeeds : filteredOrders;
 
@@ -61,7 +86,9 @@ export default function RelatoriosPage() {
         {
           tipo,
           filtroDisponibilidade: filtroDisp,
+          filtroEspecie: filtroEspecie,
           filtroStatus: filtroStatus,
+          filtroTipo: filtroTipo,
           dataInicio: dataInicio || null,
           dataFim: dataFim || null,
           totalRegistros: data.length,
@@ -88,7 +115,9 @@ export default function RelatoriosPage() {
       baixarRelatorioPdf({
         tipo,
         filtroDisponibilidade: filtroDisp,
+        filtroEspecie,
         filtroStatus,
+        filtroTipo,
         dataInicio,
         dataFim,
         seeds: filteredSeeds,
@@ -108,15 +137,16 @@ export default function RelatoriosPage() {
     if (tipo === 'ESTOQUE') {
       csv = 'Nome,Quantidade,Unidade,Disponibilidade,Preço\n';
       (filteredSeeds).forEach((s) => {
-        csv += `"${s.nomePopular}",${s.quantidade},${s.tipoPesagem},"${DisponibilidadeLabels[s.disponibilidade]}",${s.preco || ''}\n`;
+        csv += `${textoCsv(s.nomePopular)},${s.quantidade},${s.tipoPesagem},${textoCsv(DisponibilidadeLabels[s.disponibilidade])},${s.preco || ''}\n`;
       });
     } else {
       csv = 'ID,Data,Recebedor,Tipo,Status,Total\n';
       (filteredOrders).forEach((o) => {
-        csv += `"${o.idPedido.slice(-6)}","${o.dataPedido.toLocaleDateString('pt-BR')}","${o.nomeRecebedor}","${TipoPedidoLabels[o.tipoPedido]}","${StatusPedidoLabels[o.status]}",${o.totalValor || ''}\n`;
+        csv += `${textoCsv(o.idPedido.slice(-6))},${textoCsv(o.dataPedido.toLocaleDateString('pt-BR'))},${textoCsv(o.nomeRecebedor)},${textoCsv(TipoPedidoLabels[o.tipoPedido])},${textoCsv(StatusPedidoLabels[o.status])},${o.totalValor || ''}\n`;
       });
     }
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // O ﻿ no começo (BOM) faz o Excel abrir os acentos certos
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -135,20 +165,32 @@ export default function RelatoriosPage() {
       <div className={styles.card}>
         <p className={styles.cardTitle}>Filtros</p>
         {tipo === 'ESTOQUE' ? (
-          <div className={styles.filters} role="group" aria-label="Filtrar por disponibilidade">
-            {dispOptions.map((f) => (
-              <button key={f.value} className={`${styles.chip} ${filtroDisp === f.value ? styles.chipActive : ''}`} onClick={() => setFiltroDisp(f.value)} aria-pressed={filtroDisp === f.value}>{f.label}</button>
-            ))}
-          </div>
+          <>
+            <div className={styles.filters} role="group" aria-label="Filtrar por disponibilidade">
+              {dispOptions.map((f) => (
+                <button key={f.value} className={`${styles.chip} ${filtroDisp === f.value ? styles.chipActive : ''}`} onClick={() => mudarFiltro(() => setFiltroDisp(f.value))} aria-pressed={filtroDisp === f.value}>{f.label}</button>
+              ))}
+            </div>
+            <div className={styles.filters} role="group" aria-label="Filtrar por espécie">
+              {especieOptions.map((f) => (
+                <button key={f.value} className={`${styles.chip} ${filtroEspecie === f.value ? styles.chipActive : ''}`} onClick={() => mudarFiltro(() => setFiltroEspecie(f.value))} aria-pressed={filtroEspecie === f.value}>{f.label}</button>
+              ))}
+            </div>
+          </>
         ) : (
           <>
             <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-              <Input label="Data início" type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
-              <Input label="Data fim" type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+              <Input label="Data início" type="date" value={dataInicio} onChange={(e) => mudarFiltro(() => setDataInicio(e.target.value))} />
+              <Input label="Data fim" type="date" value={dataFim} onChange={(e) => mudarFiltro(() => setDataFim(e.target.value))} />
             </div>
             <div className={styles.filters} role="group" aria-label="Filtrar por status">
               {statusOptions.map((f) => (
-                <button key={f.value} className={`${styles.chip} ${filtroStatus === f.value ? styles.chipActive : ''}`} onClick={() => setFiltroStatus(f.value)} aria-pressed={filtroStatus === f.value}>{f.label}</button>
+                <button key={f.value} className={`${styles.chip} ${filtroStatus === f.value ? styles.chipActive : ''}`} onClick={() => mudarFiltro(() => setFiltroStatus(f.value))} aria-pressed={filtroStatus === f.value}>{f.label}</button>
+              ))}
+            </div>
+            <div className={styles.filters} role="group" aria-label="Filtrar por tipo de pedido">
+              {tipoPedidoOptions.map((f) => (
+                <button key={f.value} className={`${styles.chip} ${filtroTipo === f.value ? styles.chipActive : ''}`} onClick={() => mudarFiltro(() => setFiltroTipo(f.value))} aria-pressed={filtroTipo === f.value}>{f.label}</button>
               ))}
             </div>
           </>

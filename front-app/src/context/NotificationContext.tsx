@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { apiGet, apiPatch, comQuery } from '@/lib/api';
+import { apiGet, apiPatch } from '@/lib/api';
 import { Notificacao } from '@/types/notification';
 import { useAuth } from './AuthContext';
 
@@ -9,6 +9,7 @@ interface NotificationContextType {
   notifications: Notificacao[];
   unreadCount: number;
   markAsRead: (id: string) => Promise<void>;
+  markAsUnread: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -17,6 +18,7 @@ const NotificationContext = createContext<NotificationContextType>({
   notifications: [],
   unreadCount: 0,
   markAsRead: async () => {},
+  markAsUnread: async () => {},
   markAllAsRead: async () => {},
   refresh: async () => {},
 });
@@ -59,7 +61,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const refresh = useCallback(async () => {
     if (!proprietarioId) return;
     try {
-      const data = await apiGet<NotificacaoApi[]>(comQuery('/notificacoes', { proprietarioId }));
+      // O backend ja devolve so as notificacoes de quem esta logado
+      const data = await apiGet<NotificacaoApi[]>('/notificacoes');
       setNotifications(data.map(toNotificacao));
     } catch {
       // Mantem a lista anterior; a proxima consulta tenta de novo
@@ -85,6 +88,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setNotifications((prev) => prev.map((n) => (n.idNotificacao === id ? atualizada : n)));
   }, []);
 
+  const markAsUnread = useCallback(async (id: string) => {
+    const atualizada = toNotificacao(
+      await apiPatch<NotificacaoApi>(`/notificacoes/${id}/nao-lida`)
+    );
+    setNotifications((prev) => prev.map((n) => (n.idNotificacao === id ? atualizada : n)));
+  }, []);
+
   const markAllAsRead = useCallback(async () => {
     const unread = notifications.filter((n) => !n.lida);
     await Promise.all(unread.map((n) => markAsRead(n.idNotificacao)));
@@ -93,7 +103,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const unreadCount = notifications.filter((n) => !n.lida).length;
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, refresh }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAsUnread, markAllAsRead, refresh }}>
       {children}
     </NotificationContext.Provider>
   );
