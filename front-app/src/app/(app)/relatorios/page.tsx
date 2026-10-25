@@ -111,9 +111,13 @@ export default function RelatoriosPage() {
     }
   };
 
+  // Só exporta o que foi gerado: depois de mudar um filtro a prévia some, e sem
+  // esta trava o PDF/CSV sairia com dados que nunca entraram no histórico.
+  const podeExportar = generated && data.length > 0;
+
   /** Gera o PDF no cliente; a emissão já foi registrada em /relatorios por handleGenerate. */
   const handleExportPDF = async () => {
-    if (!data.length) return;
+    if (!podeExportar) return;
     setExportando(true);
     try {
       const { baixarRelatorioPdf } = await import('@/lib/pdf');
@@ -139,7 +143,7 @@ export default function RelatoriosPage() {
   };
 
   const handleExportCSV = () => {
-    if (!data.length) return;
+    if (!podeExportar) return;
     let csv = '';
     if (tipo === 'ESTOQUE') {
       csv = 'Nome,Quantidade,Unidade,Disponibilidade,Preço\n';
@@ -212,8 +216,8 @@ export default function RelatoriosPage() {
         <div className={styles.previewHeader}>
           <p className={styles.cardTitle}>{generated ? `Prévia — ${data.length} registros` : 'Exportar relatório'}</p>
           <div className={styles.previewActions}>
-            <Button variant="secondary" size="sm" onClick={handleExportPDF} disabled={data.length === 0} loading={exportando}>⬇ PDF</Button>
-            <Button variant="secondary" size="sm" onClick={handleExportCSV} disabled={data.length === 0}>⬇ CSV</Button>
+            <Button variant="secondary" size="sm" onClick={handleExportPDF} disabled={!podeExportar} loading={exportando}>⬇ PDF</Button>
+            <Button variant="secondary" size="sm" onClick={handleExportCSV} disabled={!podeExportar}>⬇ CSV</Button>
           </div>
         </div>
 
