@@ -118,7 +118,7 @@ export default function RelatoriosPage() {
     try {
       const { baixarRelatorioPdf } = await import('@/lib/pdf');
       const semente = seeds.find((s) => s.idProduto === filtroSemente);
-      baixarRelatorioPdf({
+      await baixarRelatorioPdf({
         tipo,
         filtroDisponibilidade: filtroDisp,
         filtroEspecie,

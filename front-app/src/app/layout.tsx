@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { ToastProvider } from '@/components/feedback/Toast';
+import { SplashScreen } from '@/components/shared/SplashScreen';
 
 export const metadata: Metadata = {
   title: 'Semente Livre',
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ToastProvider>{children}</ToastProvider>
+        <SplashScreen />
       </body>
     </html>
   );

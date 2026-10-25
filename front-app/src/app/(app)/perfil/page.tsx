@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ZoomControl } from '@/components/shared/ZoomControl';
+import { InstitutionalLogo } from '@/components/shared/InstitutionalLogo';
 import styles from './perfil.module.css';
 
 const formStack: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' };
@@ -347,6 +348,7 @@ export default function PerfilPage() {
           <Shield size={14} strokeWidth={2.5} className={styles.cardHeaderIcon} />
           <p className={styles.cardTitle}>Sobre e Privacidade</p>
         </div>
+        <InstitutionalLogo align="start" credit />
         <div className={styles.about}>Semente Livre v1.0.0</div>
         <div className={styles.about}>IF Sudeste MG — Campus Rio Pomba</div>
         <div className={styles.about}>Gestão de bancos de produtos crioulos para produtores rurais familiares.</div>
