@@ -11,6 +11,11 @@ spring:
   flyway:
     enabled: true
 
+# O JwtService não tem mais valor padrão para a chave (#131). Esta é só dos
+# testes; em produção ela vem de JWT_SECRET (application-prod.yml).
+jwt:
+  secret: chaveSomenteParaOsTestesDeIntegracaoComMaisDe256Bits0123456789
+
 app:
   cors:
     allowed-origins:
