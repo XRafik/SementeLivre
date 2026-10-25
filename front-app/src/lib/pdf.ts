@@ -3,6 +3,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DisponibilidadeLabels, type Estoque } from '@/types/stock';
+import { EspecieGeralLabels } from '@/types/seed';
 import { TipoPedidoLabels, StatusPedidoLabels, type Pedido } from '@/types/order';
 import { LOGOS_IF } from '@/lib/institutionalLogo';
 
@@ -11,7 +12,10 @@ export type PdfTipo = 'ESTOQUE' | 'PEDIDOS';
 interface PdfContexto {
   tipo: PdfTipo;
   filtroDisponibilidade?: string;
+  filtroEspecie?: string;
   filtroStatus?: string;
+  filtroTipo?: string;
+  nomeSemente?: string;
   dataInicio?: string;
   dataFim?: string;
   seeds: Estoque[];
@@ -45,7 +49,7 @@ async function carregarLogoIF(): Promise<Uint8Array | null> {
  * Não há endpoint de PDF no backend: o arquivo é gerado no cliente a partir
  * dos mesmos dados que a prévia exibe, e a emissão já foi registrada em /relatorios.
  */
-export async function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroStatus, dataInicio, dataFim, seeds, orders }: PdfContexto): Promise<void> {
+export async function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroEspecie, filtroStatus, filtroTipo, nomeSemente, dataInicio, dataFim, seeds, orders }: PdfContexto): Promise<void> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const ehEstoque = tipo === 'ESTOQUE';
 
@@ -79,8 +83,15 @@ export async function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroSt
   const filtros: string[] = [];
   if (ehEstoque) {
     filtros.push(`Disponibilidade: ${filtroDisponibilidade && filtroDisponibilidade !== 'TODOS' ? DisponibilidadeLabels[filtroDisponibilidade as keyof typeof DisponibilidadeLabels] ?? filtroDisponibilidade : 'Todas'}`);
+    if (filtroEspecie && filtroEspecie !== 'TODOS') {
+      filtros.push(`Espécie: ${EspecieGeralLabels[filtroEspecie as keyof typeof EspecieGeralLabels]}`);
+    }
   } else {
     filtros.push(`Status: ${filtroStatus && filtroStatus !== 'TODOS' ? StatusPedidoLabels[filtroStatus as keyof typeof StatusPedidoLabels] ?? filtroStatus : 'Todos'}`);
+    if (filtroTipo && filtroTipo !== 'TODOS') {
+      filtros.push(`Tipo: ${TipoPedidoLabels[filtroTipo as keyof typeof TipoPedidoLabels]}`);
+    }
+    if (nomeSemente) filtros.push(`Semente: ${nomeSemente}`);
     if (dataInicio) filtros.push(`De: ${formatarDataBr(dataInicio)}`);
     if (dataFim) filtros.push(`Até: ${formatarDataBr(dataFim)}`);
   }
