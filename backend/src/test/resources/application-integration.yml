@@ -5,6 +5,9 @@ spring:
     hibernate:
       ddl-auto: none
     show-sql: false
+    # Igual à produção (application-prod.yml): sem a sessão aberta até a view,
+    # acesso lazy fora do service quebra aqui também, e não só em produção.
+    open-in-view: false
   flyway:
     enabled: true
 
