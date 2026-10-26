@@ -134,6 +134,29 @@ test.describe('Relatórios com dados reais (#103)', () => {
     await conferirHistorico(page, 0);
   });
 
+  test('mudar o filtro trava a exportação até gerar de novo', async ({ appLogado: page, produtor }) => {
+    const id = unico();
+    await criarSemente(produtor, `Feijão Venda ${id}`, 'FEIJAO', 'PARA_VENDA');
+    await criarSemente(produtor, `Milho Troca ${id}`, 'MILHO', 'PARA_TROCA');
+    const pdf = page.getByRole('button', { name: '⬇ PDF' });
+    const csv = page.getByRole('button', { name: '⬇ CSV' });
+
+    await page.goto('/relatorios');
+    await expect(csv).toBeDisabled();
+    await gerar(page);
+    await expect(csv).toBeEnabled();
+
+    // Sem a trava, o CSV saía com 1 registro enquanto o histórico só tinha o de 2
+    await chip(page, 'Filtrar por disponibilidade', 'Para Troca').click();
+    await expect(pdf).toBeDisabled();
+    await expect(csv).toBeDisabled();
+
+    await gerar(page);
+    await conferirHistorico(page, 1);
+    await expect(pdf).toBeEnabled();
+    await expect(csv).toBeEnabled();
+  });
+
   test('pedidos: filtros de tipo, status, semente e período', async ({ appLogado: page, produtor }) => {
     const id = unico();
     const feijao = await criarSemente(produtor, `Feijão Pedido ${id}`, 'FEIJAO', 'PARA_VENDA');
