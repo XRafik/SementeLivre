@@ -26,8 +26,8 @@ function textoCsv(valor: string): string {
 }
 
 export default function RelatoriosPage() {
-  const { seeds } = useSeeds();
-  const { orders } = useOrders();
+  const { seeds, loading: carregandoSeeds } = useSeeds();
+  const { orders, loading: carregandoOrders } = useOrders();
   const { relatorios, registrarEmissao } = useRelatorios();
   const { showToast } = useToast();
 
@@ -75,6 +75,9 @@ export default function RelatoriosPage() {
   };
 
   const data = tipo === 'ESTOQUE' ? filteredSeeds : filteredOrders;
+  // Gerar antes da lista chegar gravava 0 registros no histórico, e a prévia
+  // mostrava o número certo logo depois (conexão lenta no campo).
+  const carregandoDados = tipo === 'ESTOQUE' ? carregandoSeeds : carregandoOrders;
 
   // O histórico da tela mostra só os dois tipos que este formulário emite.
   const historico = relatorios.filter(
@@ -83,6 +86,7 @@ export default function RelatoriosPage() {
 
   /** Gera a prévia e registra a emissão em /relatorios (histórico no backend). */
   const handleGenerate = async () => {
+    if (carregandoDados) return;
     setGerando(true);
     try {
       await registrarEmissao(
@@ -207,8 +211,8 @@ export default function RelatoriosPage() {
             <Select label="Semente" options={sementeOptions} value={filtroSemente} onChange={(e) => mudarFiltro(() => setFiltroSemente(e.target.value))} />
           </>
         )}
-        <Button variant="primary" fullWidth onClick={handleGenerate} loading={gerando}>
-          Gerar Relatório
+        <Button variant="primary" fullWidth onClick={handleGenerate} loading={gerando} disabled={carregandoDados}>
+          {carregandoDados ? 'Carregando dados...' : 'Gerar Relatório'}
         </Button>
       </div>
 

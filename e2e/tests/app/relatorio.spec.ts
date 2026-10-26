@@ -59,6 +59,27 @@ test.describe('Relatórios (front-app)', () => {
     await expect(page.getByRole('button', { name: '⬇ CSV' })).toBeDisabled();
   });
 
+  test('não gera antes do estoque carregar, senão o histórico grava 0 registros', async ({ appLogado: page, produtor }) => {
+    await criarOferta(produtor);
+    await criarOferta(produtor);
+    // Conexão lenta: segura a lista de estoques por 6s (o dado continua vindo do backend)
+    await page.route(`${API_URL}/estoques`, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      const resposta = await route.fetch();
+      await new Promise((resolve) => setTimeout(resolve, 6000));
+      await route.fulfill({ response: resposta });
+    });
+
+    await page.goto('/relatorios');
+    await expect(page.getByRole('button', { name: 'Carregando dados...' })).toBeDisabled();
+
+    await page.getByRole('button', { name: 'Gerar Relatório' }).click({ timeout: 15_000 });
+    await expect(toast(page, 'Relatório gerado e registrado!')).toBeVisible();
+    await expect(page.getByText('Prévia — 2 registros')).toBeVisible();
+    const ultima = page.getByRole('table', { name: 'Histórico de relatórios emitidos' }).getByRole('row').nth(1);
+    await expect(ultima.getByRole('cell').nth(2)).toHaveText('2');
+  });
+
   test('relatório gerado antes da lista carregar continua no histórico', async ({ appLogado: page }) => {
     test.fixme(true, 'Corrida no useRelatorios corrigida no PR #162; remova o fixme quando ele entrar no developer');
     // Segura a resposta da lista inicial até depois da emissão (o dado continua vindo do backend)
