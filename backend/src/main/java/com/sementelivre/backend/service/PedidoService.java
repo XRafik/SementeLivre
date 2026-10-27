@@ -30,7 +30,9 @@ import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.Proprietario;
 import com.sementelivre.backend.entity.Usuario;
 import com.sementelivre.backend.entity.enums.Disponibilidade;
+import com.sementelivre.backend.entity.enums.OrigemMovimentacao;
 import com.sementelivre.backend.entity.enums.StatusPedido;
+import com.sementelivre.backend.entity.enums.TipoMovimentacao;
 import com.sementelivre.backend.entity.enums.TipoPedido;
 import com.sementelivre.backend.repository.EstoqueRepository;
 import com.sementelivre.backend.repository.PedidoRepository;
@@ -62,6 +64,7 @@ public class PedidoService {
     private final PedidoRepository pedidoRepository;
     private final ProdutoRepository produtoRepository;
     private final EstoqueRepository estoqueRepository;
+    private final EstoqueService estoqueService;
     private final UsuarioRepository usuarioRepository;
     private final NotificacaoService notificacaoService;
     private final ApplicationEventPublisher eventos;
@@ -76,6 +79,7 @@ public class PedidoService {
             PedidoRepository pedidoRepository,
             ProdutoRepository produtoRepository,
             EstoqueRepository estoqueRepository,
+            EstoqueService estoqueService,
             UsuarioRepository usuarioRepository,
             NotificacaoService notificacaoService,
             ApplicationEventPublisher eventos) {
@@ -83,6 +87,7 @@ public class PedidoService {
         this.pedidoRepository = pedidoRepository;
         this.produtoRepository = produtoRepository;
         this.estoqueRepository = estoqueRepository;
+        this.estoqueService = estoqueService;
         this.usuarioRepository = usuarioRepository;
         this.notificacaoService = notificacaoService;
         this.eventos = eventos;
@@ -290,8 +295,11 @@ public class PedidoService {
                                 + ", solicitado " + formatarQuantidade(demanda.quantidade()) + ".");
             }
 
-            estoque.setQuantidade(estoque.getQuantidade() - demanda.quantidade());
+            double saldoAnterior = estoque.getQuantidade();
+            estoque.setQuantidade(saldoAnterior - demanda.quantidade());
             estoqueRepository.save(estoque);
+            estoqueService.registrarLancamentoDePedido(estoque, tipoDeSaida(pedido.getTipoPedido()),
+                    OrigemMovimentacao.PEDIDO, saldoAnterior, "Pedido de " + quemPediu(pedido));
         });
     }
 
@@ -308,8 +316,12 @@ public class PedidoService {
                 estoqueRepository
                         .findParaAtualizacao(proprietarioId, produtoId)
                         .ifPresent(estoque -> {
-                            estoque.setQuantidade(estoque.getQuantidade() + demanda.quantidade());
+                            double saldoAnterior = estoque.getQuantidade();
+                            estoque.setQuantidade(saldoAnterior + demanda.quantidade());
                             estoqueRepository.save(estoque);
+                            estoqueService.registrarLancamentoDePedido(estoque, TipoMovimentacao.ENTRADA,
+                                    OrigemMovimentacao.DEVOLUCAO, saldoAnterior,
+                                    "Devolução do pedido de " + quemPediu(pedido));
                         }));
     }
 
@@ -340,6 +352,25 @@ public class PedidoService {
         }
 
         return total;
+    }
+
+    private static TipoMovimentacao tipoDeSaida(TipoPedido tipo) {
+        return switch (tipo) {
+            case VENDA -> TipoMovimentacao.SAIDA_VENDA;
+            case TROCA -> TipoMovimentacao.SAIDA_TROCA;
+            case DOACAO -> TipoMovimentacao.SAIDA_DOACAO;
+        };
+    }
+
+    // Nome que aparece no historico do estoque: o comprador do site ou a conta que registrou
+    private static String quemPediu(Pedido pedido) {
+        if (pedido.getComprador() != null && pedido.getComprador().getNome() != null) {
+            return pedido.getComprador().getNome();
+        }
+        if (pedido.getUsuarioSolicitante() != null && pedido.getUsuarioSolicitante().getPessoa() != null) {
+            return pedido.getUsuarioSolicitante().getNome();
+        }
+        return "comprador não informado";
     }
 
     // Todo pedido que ainda nao foi cancelado esta com o estoque reservado

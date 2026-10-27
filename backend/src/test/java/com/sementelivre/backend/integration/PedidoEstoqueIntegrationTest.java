@@ -15,17 +15,21 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sementelivre.backend.BackendApplication;
 import com.sementelivre.backend.dto.CompradorDTO;
+import com.sementelivre.backend.dto.MovimentacaoResponseDTO;
 import com.sementelivre.backend.dto.PedidoRequestDTO;
 import com.sementelivre.backend.dto.PedidoResponseDTO;
 import com.sementelivre.backend.entity.Estoque;
 import com.sementelivre.backend.entity.Notificacao;
 import com.sementelivre.backend.entity.Pedido;
+import com.sementelivre.backend.entity.enums.OrigemMovimentacao;
 import com.sementelivre.backend.entity.enums.StatusPedido;
+import com.sementelivre.backend.entity.enums.TipoMovimentacao;
 import com.sementelivre.backend.repository.EstoqueRepository;
 import com.sementelivre.backend.repository.PedidoRepository;
 import com.sementelivre.backend.repository.ProdutoRepository;
@@ -96,6 +100,34 @@ class PedidoEstoqueIntegrationTest extends AbstractPostgresIntegrationTest {
         assertEquals(ESTOQUE_INICIAL, estoque(scenario).getQuantidade());
         assertEquals(StatusPedido.CANCELADO,
                 pedidoRepository.findById(criado.id()).orElseThrow().getStatus());
+    }
+
+    @Test
+    @Transactional
+    void historicoDoEstoque_deveAcompanharPedidoECancelamento() {
+        CrossDomainFixture.Scenario scenario = fixture(ESTOQUE_INICIAL);
+        PedidoResponseDTO criado = pedidoService.criar(CrossDomainFixture.pedido(scenario, QUANTIDADE_PEDIDA));
+        pedidoService.cancelar(criado.id());
+        entityManager.flush();
+        entityManager.clear();
+
+        Estoque estoque = estoque(scenario);
+        List<MovimentacaoResponseDTO> historico = estoqueService
+                .historico(estoque.getId(), PageRequest.of(0, 10))
+                .getContent();
+
+        // Mais recente primeiro: devolução, saída do pedido, cadastro (#185)
+        assertEquals(3, historico.size());
+        assertEquals(OrigemMovimentacao.DEVOLUCAO, historico.get(0).origem());
+        assertEquals(TipoMovimentacao.ENTRADA, historico.get(0).tipo());
+        assertEquals(OrigemMovimentacao.PEDIDO, historico.get(1).origem());
+        assertEquals(TipoMovimentacao.SAIDA_VENDA, historico.get(1).tipo());
+        assertEquals(ESTOQUE_INICIAL, historico.get(1).saldoAnterior());
+        assertEquals(ESTOQUE_INICIAL - QUANTIDADE_PEDIDA, historico.get(1).saldoPosterior());
+        assertEquals(OrigemMovimentacao.CADASTRO, historico.get(2).origem());
+
+        // O saldo da linha mais recente é o saldo do estoque
+        assertEquals(estoque.getQuantidade(), historico.get(0).saldoPosterior());
     }
 
     @Test

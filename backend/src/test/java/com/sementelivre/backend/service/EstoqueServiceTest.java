@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -23,9 +24,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.sementelivre.backend.dto.EstoqueRequestDTO;
 import com.sementelivre.backend.dto.EstoqueResponseDTO;
 import com.sementelivre.backend.entity.Estoque;
+import com.sementelivre.backend.entity.Movimentacao;
 import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.Proprietario;
 import com.sementelivre.backend.entity.enums.Disponibilidade;
+import com.sementelivre.backend.entity.enums.OrigemMovimentacao;
 import com.sementelivre.backend.entity.enums.Pesagem;
 import com.sementelivre.backend.entity.enums.TipoMovimentacao;
 import com.sementelivre.backend.repository.EstoqueRepository;
@@ -251,6 +254,88 @@ class EstoqueServiceTest {
             salvo.setId(estoqueId);
             return salvo;
         });
+    }
+
+    // HISTÓRICO DO AJUSTE (#185)
+
+    @Test
+    void ajusteQueAumentaOSaldoNaoFicaComoSaidaNoHistorico() {
+        // O app reenvia o tipo da última movimentação (aqui, uma venda)
+        estoque.setTipoMovimentacao(TipoMovimentacao.SAIDA_VENDA);
+        mockAtualizacao();
+
+        estoqueService.atualizar(estoqueId, ajusteParaQuantidade(15.0, TipoMovimentacao.SAIDA_VENDA));
+
+        Movimentacao lancamento = lancamentoGravado();
+        assertEquals(TipoMovimentacao.ENTRADA, lancamento.getTipo());
+        assertEquals(OrigemMovimentacao.AJUSTE_MANUAL, lancamento.getOrigem());
+        assertEquals(5.0, lancamento.getQuantidade());
+        assertEquals(10.0, lancamento.getSaldoAnterior());
+        assertEquals(15.0, lancamento.getSaldoPosterior());
+        assertTrue(lancamento.isAumento());
+    }
+
+    @Test
+    void ajusteQueDiminuiComTipoEntradaViraCorrecao() {
+        mockAtualizacao();
+
+        estoqueService.atualizar(estoqueId, ajusteParaQuantidade(7.0, TipoMovimentacao.ENTRADA));
+
+        assertEquals(TipoMovimentacao.CORRECAO, lancamentoGravado().getTipo());
+    }
+
+    @Test
+    void ajusteQueZeraOSaldoViraZeramento() {
+        mockAtualizacao();
+
+        estoqueService.atualizar(estoqueId, ajusteParaQuantidade(0.0, TipoMovimentacao.ENTRADA));
+
+        assertEquals(TipoMovimentacao.ZERAMENTO, lancamentoGravado().getTipo());
+    }
+
+    @Test
+    void saidaExplicitaQueDiminuiOSaldoEMantida() {
+        mockAtualizacao();
+
+        estoqueService.atualizar(estoqueId, ajusteParaQuantidade(6.0, TipoMovimentacao.SAIDA_DOACAO));
+
+        assertEquals(TipoMovimentacao.SAIDA_DOACAO, lancamentoGravado().getTipo());
+    }
+
+    @Test
+    void motivoDoAjusteNaoCopiaADescricaoDaOferta() {
+        mockAtualizacao();
+
+        estoqueService.atualizar(estoqueId, ajusteParaQuantidade(12.0, TipoMovimentacao.ENTRADA));
+
+        assertEquals("Ajuste manual de quantidade", lancamentoGravado().getDescricao());
+    }
+
+    @Test
+    void lancamentoDePedidoGuardaOsSaldosAntesEDepois() {
+        estoque.setQuantidade(6.0);
+
+        estoqueService.registrarLancamentoDePedido(estoque, TipoMovimentacao.SAIDA_VENDA,
+                OrigemMovimentacao.PEDIDO, 10.0, "Pedido de Maria");
+
+        Movimentacao lancamento = lancamentoGravado();
+        assertEquals(TipoMovimentacao.SAIDA_VENDA, lancamento.getTipo());
+        assertEquals(OrigemMovimentacao.PEDIDO, lancamento.getOrigem());
+        assertEquals(4.0, lancamento.getQuantidade());
+        assertEquals(10.0, lancamento.getSaldoAnterior());
+        assertEquals(6.0, lancamento.getSaldoPosterior());
+        assertEquals("Pedido de Maria", lancamento.getDescricao());
+    }
+
+    private EstoqueRequestDTO ajusteParaQuantidade(double quantidade, TipoMovimentacao tipo) {
+        return new EstoqueRequestDTO(proprietarioId, produtoId, "Texto da oferta na vitrine", 15.0, quantidade,
+                Pesagem.KG, Disponibilidade.PARA_VENDA, tipo);
+    }
+
+    private Movimentacao lancamentoGravado() {
+        ArgumentCaptor<Movimentacao> captor = ArgumentCaptor.forClass(Movimentacao.class);
+        verify(movimentacaoRepository).save(captor.capture());
+        return captor.getValue();
     }
 
     private void mockAtualizacao() {

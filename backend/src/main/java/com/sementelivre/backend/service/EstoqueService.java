@@ -142,6 +142,7 @@ public class EstoqueService {
 
         // Só vira linha no histórico se o saldo mexeu; mudar só a descrição ou o
         // preço não é movimentação e não deve poluir a linha do tempo.
+        // A descrição do DTO é a da oferta (vitrine), não o motivo do ajuste.
         if (Double.compare(saldoAnterior, dto.quantidade()) != 0) {
             registrarLancamento(
                     atualizado,
@@ -150,7 +151,7 @@ public class EstoqueService {
                     Math.abs(dto.quantidade() - saldoAnterior),
                     saldoAnterior,
                     dto.quantidade(),
-                    dto.descricao() != null ? dto.descricao() : "Ajuste manual de quantidade"
+                    "Ajuste manual de quantidade"
             );
         }
 
@@ -232,17 +233,57 @@ public class EstoqueService {
                 .map(this::toMovimentacaoDTO);
     }
 
+    /**
+     * Lançamento de um pedido no histórico (#185). Quem chama já travou a linha
+     * e mudou o saldo; sem este registro o histórico deixa de bater com o
+     * estoque a cada pedido registrado, cancelado ou excluído.
+     */
+    @Transactional
+    public void registrarLancamentoDePedido(
+            Estoque estoque,
+            TipoMovimentacao tipo,
+            OrigemMovimentacao origem,
+            double saldoAnterior,
+            String descricao) {
+
+        registrarLancamento(
+                estoque,
+                tipo,
+                origem,
+                Math.abs(estoque.getQuantidade() - saldoAnterior),
+                saldoAnterior,
+                estoque.getQuantidade(),
+                descricao
+        );
+    }
+
     private TipoMovimentacao tipoParaAjuste(
             TipoMovimentacao informado,
             double saldoAnterior,
             double saldoNovo) {
 
-        // Uma saída explícita no formulário vale mais que a inferência.
-        if (informado != null && informado != TipoMovimentacao.ENTRADA) {
+        boolean aumentou = saldoNovo > saldoAnterior;
+
+        // Um tipo explícito no formulário vale mais que a inferência, desde que
+        // ande no mesmo sentido do saldo. O app reenvia o tipo da última
+        // movimentação, e uma "saída" que aumentou o saldo ficava no histórico.
+        if (informado != null && combinaComOSentido(informado, aumentou, saldoNovo)) {
             return informado;
         }
 
-        return saldoNovo > saldoAnterior ? TipoMovimentacao.ENTRADA : TipoMovimentacao.CORRECAO;
+        if (aumentou) {
+            return TipoMovimentacao.ENTRADA;
+        }
+        return saldoNovo == 0 ? TipoMovimentacao.ZERAMENTO : TipoMovimentacao.CORRECAO;
+    }
+
+    private static boolean combinaComOSentido(TipoMovimentacao tipo, boolean aumentou, double saldoNovo) {
+        return switch (tipo) {
+            case ENTRADA -> aumentou;
+            case SAIDA_VENDA, SAIDA_TROCA, SAIDA_DOACAO -> !aumentou;
+            case ZERAMENTO -> saldoNovo == 0;
+            case CORRECAO -> true;
+        };
     }
 
     private Movimentacao registrarLancamento(

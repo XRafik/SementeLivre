@@ -23,6 +23,12 @@ import { useAuth } from '@/context/AuthContext';
 
 // ── Join /produtos + /estoques no item de tela ────────────────────────────────
 
+function tipoDoAjuste(saldoAtual: number, novo: number | undefined, tipoAtual: TipoMovimentacao): TipoMovimentacao {
+  if (novo === undefined || novo === saldoAtual) return tipoAtual;
+  if (novo > saldoAtual) return TipoMovimentacao.ENTRADA;
+  return novo === 0 ? TipoMovimentacao.ZERAMENTO : TipoMovimentacao.CORRECAO;
+}
+
 function paraData(iso: string | null | undefined): Date {
   return iso ? new Date(iso) : new Date();
 }
@@ -185,7 +191,9 @@ export function useSeeds() {
           quantidade: quantidade ?? atual.quantidade,
           tipoPesagem: tipoPesagem ?? atual.tipoPesagem,
           disponibilidade: disponibilidade ?? atual.disponibilidade,
-          tipoMovimentacao: atual.tipo,
+          // Ajuste de quantidade é entrada ou correção; reenviar o tipo da última
+          // movimentação gravava, por exemplo, "saída por venda" num ajuste manual
+          tipoMovimentacao: tipoDoAjuste(atual.quantidade, quantidade, atual.tipo),
           aceitaNegociacao: aceitaNegociacao ?? atual.aceitaNegociacao,
         });
       }

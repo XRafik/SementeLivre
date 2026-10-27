@@ -15,6 +15,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import static org.mockito.Mockito.never;
@@ -38,7 +41,9 @@ import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.Proprietario;
 import com.sementelivre.backend.entity.Usuario;
 import com.sementelivre.backend.entity.enums.Disponibilidade;
+import com.sementelivre.backend.entity.enums.OrigemMovimentacao;
 import com.sementelivre.backend.entity.enums.StatusPedido;
+import com.sementelivre.backend.entity.enums.TipoMovimentacao;
 import com.sementelivre.backend.entity.enums.TipoPedido;
 import com.sementelivre.backend.repository.EstoqueRepository;
 import com.sementelivre.backend.repository.PedidoRepository;
@@ -60,6 +65,9 @@ class PedidoServiceTest {
 
     @Mock
     private EstoqueRepository estoqueRepository;
+
+    @Mock
+    private EstoqueService estoqueService;
 
     @Mock
     private UsuarioRepository usuarioRepository;
@@ -91,6 +99,7 @@ class PedidoServiceTest {
                 pedidoRepository,
                 produtoRepository,
                 estoqueRepository,
+                estoqueService,
                 usuarioRepository,
                 notificacaoService,
                 eventos
@@ -146,6 +155,33 @@ class PedidoServiceTest {
         assertEquals(ESTOQUE_INICIAL - QUANTIDADE_PEDIDA, estoque.getQuantidade());
         verify(estoqueRepository).save(estoque);
         verify(notificacaoService).criarParaPedidoRegistrado(any(Pedido.class));
+    }
+
+    @Test
+    void reservaDoPedidoViraSaidaNoHistoricoDoEstoque() {
+        mockUsuarioEProdutoExistentes();
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        pedidoService.criar(requestComQuantidade(QUANTIDADE_PEDIDA));
+
+        // Sem este lançamento o histórico continuava no saldo antigo (#185)
+        verify(estoqueService).registrarLancamentoDePedido(estoque, TipoMovimentacao.SAIDA_VENDA,
+                OrigemMovimentacao.PEDIDO, ESTOQUE_INICIAL, "Pedido de João");
+    }
+
+    @Test
+    void saidaNoHistoricoSegueOTipoDoPedido() {
+        mockUsuarioEProdutoExistentes();
+        mockEstoqueDisponivel();
+        mockSalvarPedido();
+
+        pedidoService.criar(new PedidoRequestDTO(TipoPedido.DOACAO, null, usuarioId, proprietarioId,
+                List.of(new ItemPedidoRequestDTO(produtoId, QUANTIDADE_PEDIDA, null)),
+                new CompradorDTO("Maria Silva", "32999990000")));
+
+        verify(estoqueService).registrarLancamentoDePedido(estoque, TipoMovimentacao.SAIDA_DOACAO,
+                OrigemMovimentacao.PEDIDO, ESTOQUE_INICIAL, "Pedido de Maria Silva");
     }
 
     @Test
@@ -551,6 +587,8 @@ class PedidoServiceTest {
 
         verify(estoqueRepository).save(estoque);
         verify(notificacaoService).criarParaPedidoCancelado(any(Pedido.class));
+        verify(estoqueService).registrarLancamentoDePedido(estoque, TipoMovimentacao.ENTRADA,
+                OrigemMovimentacao.DEVOLUCAO, ESTOQUE_INICIAL - QUANTIDADE_PEDIDA, "Devolução do pedido de João");
     }
 
     @Test
@@ -564,6 +602,8 @@ class PedidoServiceTest {
 
         // Cancelar duas vezes devolveria o estoque em dobro
         verify(estoqueRepository, never()).save(any(Estoque.class));
+        verify(estoqueService, never()).registrarLancamentoDePedido(
+                any(Estoque.class), any(TipoMovimentacao.class), any(OrigemMovimentacao.class), anyDouble(), anyString());
         verify(notificacaoService, never()).criarParaPedidoCancelado(any(Pedido.class));
     }
 
@@ -618,6 +658,8 @@ class PedidoServiceTest {
         assertEquals(ESTOQUE_INICIAL, estoque.getQuantidade());
         verify(estoqueRepository).save(estoque);
         verify(pedidoRepository).delete(pedido);
+        verify(estoqueService).registrarLancamentoDePedido(eq(estoque), eq(TipoMovimentacao.ENTRADA),
+                eq(OrigemMovimentacao.DEVOLUCAO), eq(ESTOQUE_INICIAL - QUANTIDADE_PEDIDA), anyString());
     }
 
     @Test
