@@ -35,6 +35,30 @@
   background: #bbf7d0;
 }
 
+/* Pedido cancelado: vermelho claro (salmão), lida ou não */
+.cancelado .item {
+  background: var(--color-salmon-light);
+  border-color: var(--color-salmon-border);
+  border-left-color: var(--color-salmon);
+}
+
+.cancelado .item:hover {
+  background: var(--color-salmon-hover);
+}
+
+.cancelado .unread {
+  border-left-color: var(--color-salmon-dark);
+}
+
+.cancelado .icon {
+  background: white;
+  color: var(--color-salmon-dark);
+}
+
+.cancelado .dot {
+  background: var(--color-salmon-dark);
+}
+
 .dot {
   position: absolute;
   top: var(--space-4);

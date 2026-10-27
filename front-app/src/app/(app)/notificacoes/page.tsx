@@ -19,6 +19,11 @@ function timeAgo(date: Date): string {
   return 'agora';
 }
 
+// Pedido cancelado pelo produtor ou recusado pela fila ganha destaque em salmao
+function ehCancelamento(titulo: string): boolean {
+  return /cancelad|recusad/i.test(titulo);
+}
+
 export default function NotificacoesPage() {
   const { notifications, markAsRead, markAsUnread, markAllAsRead } = useNotifications();
   const router = useRouter();
@@ -46,7 +51,7 @@ export default function NotificacoesPage() {
       ) : (
         <ul className={styles.list}>
           {notifications.map((n) => (
-            <li key={n.idNotificacao}>
+            <li key={n.idNotificacao} className={ehCancelamento(n.titulo) ? styles.cancelado : undefined}>
               <button
                 className={`${styles.item} ${!n.lida ? styles.unread : ''}`}
                 onClick={() => handleNotif(n.idNotificacao, n.idPedido, n.lida)}

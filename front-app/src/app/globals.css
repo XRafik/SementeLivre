@@ -18,6 +18,13 @@
   --color-danger: #ef4444;
   --color-danger-dark: #dc2626;
   --color-danger-light: #fee2e2;
+
+  /* Salmão: destaque de pedido cancelado nas notificações */
+  --color-salmon: #fa8072;
+  --color-salmon-dark: #c2410c;
+  --color-salmon-light: #ffe8e3;
+  --color-salmon-hover: #ffd9d1;
+  --color-salmon-border: rgba(250, 128, 114, 0.35);
   
   --color-warning: #f59e0b;
   --color-warning-light: #fef3c7;
