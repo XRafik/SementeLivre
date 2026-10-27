@@ -57,7 +57,7 @@ public class ProprietarioServiceTest {
     @Test
     public void deveLancarConflitoQuandoEmailDuplicado() {
         ProprietarioCreateRequestDTO dto = dtoValido();
-        when(pessoaRepository.existsByEmail(dto.getEmail())).thenReturn(true);
+        when(pessoaRepository.existsByEmailIgnoreCase(dto.getEmail())).thenReturn(true);
 
         assertThatThrownBy(() -> proprietarioService.criar(dto))
                 .isInstanceOf(EmailJaCadastradoException.class);
@@ -66,7 +66,7 @@ public class ProprietarioServiceTest {
     @Test
     public void deveLancarConflitoQuandoDocumentoDuplicado() {
         ProprietarioCreateRequestDTO dto = dtoValido();
-        when(pessoaRepository.existsByEmail(dto.getEmail())).thenReturn(false);
+        when(pessoaRepository.existsByEmailIgnoreCase(dto.getEmail())).thenReturn(false);
         when(pessoaRepository.existsByDocumento(dto.getDocumento())).thenReturn(true);
 
         assertThatThrownBy(() -> proprietarioService.criar(dto))
@@ -76,7 +76,7 @@ public class ProprietarioServiceTest {
     @Test
     public void deveLancarConflitoQuandoRgDuplicado() {
         ProprietarioCreateRequestDTO dto = dtoValido();
-        lenient().when(pessoaRepository.existsByEmail(dto.getEmail())).thenReturn(false);
+        lenient().when(pessoaRepository.existsByEmailIgnoreCase(dto.getEmail())).thenReturn(false);
         lenient().when(pessoaRepository.existsByDocumento(dto.getDocumento())).thenReturn(false);
         when(proprietarioRepository.existsByRg(dto.getRg())).thenReturn(true);
 
@@ -105,7 +105,7 @@ public class ProprietarioServiceTest {
         endereco.setUf("MG");
         dto.setEndereco(endereco);
 
-        when(pessoaRepository.existsByEmail(dto.getEmail())).thenReturn(false);
+        when(pessoaRepository.existsByEmailIgnoreCase(dto.getEmail())).thenReturn(false);
         when(pessoaRepository.existsByDocumento(dto.getDocumento())).thenReturn(false);
         when(proprietarioRepository.existsByRg(dto.getRg())).thenReturn(false);
         when(proprietarioRepository.save(any(Proprietario.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -124,5 +124,29 @@ public class ProprietarioServiceTest {
         assertThat(proprietario.getLogradouro()).isNotNull();
         assertThat(proprietario.getLogradouro().getLogradouro()).isEqualTo("Rua A");
         verify(logradouroRepository).save(any(Logradouro.class));
+    }
+
+    @Test
+    public void deveGravarEmailNormalizadoEBarrarDuplicadoComOutraCaixa() {
+        ProprietarioCreateRequestDTO dto = dtoValido();
+        dto.setEmail("  Prop@Email.COM ");
+        when(pessoaRepository.existsByEmailIgnoreCase("prop@email.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> proprietarioService.criar(dto))
+                .isInstanceOf(EmailJaCadastradoException.class);
+    }
+
+    @Test
+    public void deveGravarEmailEmMinusculasESemEspacos() {
+        ProprietarioCreateRequestDTO dto = dtoValido();
+        dto.setEmail("  Prop@Email.COM ");
+        when(pessoaRepository.existsByEmailIgnoreCase("prop@email.com")).thenReturn(false);
+        when(pessoaRepository.existsByDocumento(dto.getDocumento())).thenReturn(false);
+        when(proprietarioRepository.existsByRg(dto.getRg())).thenReturn(false);
+        when(proprietarioRepository.save(any(Proprietario.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Proprietario proprietario = proprietarioService.criar(dto);
+
+        assertThat(proprietario.getEmail()).isEqualTo("prop@email.com");
     }
 }

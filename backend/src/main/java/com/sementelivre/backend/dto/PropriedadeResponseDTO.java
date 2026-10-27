@@ -19,6 +19,8 @@ public record PropriedadeResponseDTO(
         String comunidadeNome,
         //Dados do LOgradouro relacionado
         String logradouroUf,
-        String logradouroMunicipio
+        String logradouroMunicipio,
+        //Endereço completo, para a tela de detalhe
+        LogradouroDTO endereco
 ) {
 }

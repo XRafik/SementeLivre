@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.sementelivre.backend.dto.UsuarioResponseDTO;
 import com.sementelivre.backend.service.UsuarioService;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/usuarios")
+@Tag(name = "Usuários", description = "Contas de login (admin).")
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
@@ -24,7 +27,9 @@ public class UsuarioController {
         this.usuarioService = usuarioService;
     }
 
+    // So admin lista as contas; a resposta traz CPF, RG e endereco.
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UsuarioResponseDTO>> listar() {
         List<UsuarioResponseDTO> usuarios = usuarioService.listarTodos().stream()
                 .map(UsuarioResponseDTO::fromEntity)
@@ -32,7 +37,9 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarios);
     }
 
+    // Cada um consulta so a propria conta; admin consulta qualquer uma.
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id == principal.id")
     public ResponseEntity<UsuarioResponseDTO> buscarPorId(@PathVariable UUID id) {
         return ResponseEntity.ok(UsuarioResponseDTO.fromEntity(usuarioService.buscarPorId(id)));
     }

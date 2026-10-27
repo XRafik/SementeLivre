@@ -4,7 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useOrders } from '@/hooks/useOrders';
 import { useToast } from '@/components/feedback/Toast';
-import { Pedido, StatusPedido, TipoPedidoLabels } from '@/types/order';
+import { useNotifications } from '@/context/NotificationContext';
+import { errorMessage } from '@/lib/api';
+import { Pedido, StatusPedido } from '@/types/order';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -16,37 +18,46 @@ export default function PedidoDetailPage() {
   const router = useRouter();
   const { getOrder, cancelOrder, confirmOrder } = useOrders();
   const { showToast } = useToast();
+  const { refresh: refreshNotifications } = useNotifications();
 
   const [order, setOrder] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCancel, setShowCancel] = useState(false);
   const [acting, setActing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    getOrder(id).then((o) => { setOrder(o); setLoading(false); });
+    getOrder(id)
+      .then((o) => { setOrder(o); setLoadError(null); })
+      .catch((err) => setLoadError(errorMessage(err, 'Erro ao carregar pedido.')))
+      .finally(() => setLoading(false));
   }, [id, getOrder]);
 
   if (loading) return <div className="skeleton" style={{ height: 300, borderRadius: 16 }} />;
+  if (loadError) return <EmptyState icon="⚠️" title={loadError} actionLabel="Voltar" onAction={() => router.push('/pedidos')} />;
   if (!order) return <EmptyState icon="📦" title="Pedido não encontrado" actionLabel="Voltar" onAction={() => router.push('/pedidos')} />;
 
+  // O status exibido vem sempre da resposta do backend, nunca de um palpite local
   const handleCancel = async () => {
     setActing(true);
     try {
-      await cancelOrder(id);
-      setOrder((p) => p ? { ...p, status: StatusPedido.CANCELADO } : p);
-      showToast('Pedido cancelado.', 'success');
+      setOrder(await cancelOrder(id));
+      showToast('Pedido cancelado. Estoque restaurado.', 'success');
       setShowCancel(false);
-    } catch { showToast('Erro ao cancelar.', 'error'); }
+      // O cancelamento tambem gera notificacao no backend (CDU-26)
+      refreshNotifications();
+    } catch (err) { showToast(errorMessage(err, 'Erro ao cancelar.'), 'error'); }
     finally { setActing(false); }
   };
 
   const handleConfirm = async () => {
     setActing(true);
     try {
-      await confirmOrder(id);
-      setOrder((p) => p ? { ...p, status: StatusPedido.CONFIRMADO } : p);
+      setOrder(await confirmOrder(id));
       showToast('Pedido confirmado!', 'success');
-    } catch { showToast('Erro ao confirmar.', 'error'); }
+      // A confirmacao gera uma notificacao no backend (CDU-26)
+      refreshNotifications();
+    } catch (err) { showToast(errorMessage(err, 'Erro ao confirmar.'), 'error'); }
     finally { setActing(false); }
   };
 
@@ -69,12 +80,12 @@ export default function PedidoDetailPage() {
           {order.itens.map((item) => (
             <li key={item.idItem} className={styles.item}>
               <span className={styles.itemName}>{item.nomePopular}</span>
-              <span className={styles.itemQty}>{item.quantidade} {item.tipoPesagem}</span>
+              <span className={styles.itemQty}>{item.quantidade}{item.tipoPesagem ? ` ${item.tipoPesagem}` : ''}</span>
               {item.precoUnitario && <span className={styles.itemPrice}>R$ {(item.precoUnitario * item.quantidade).toFixed(2)}</span>}
             </li>
           ))}
         </ul>
-        {order.totalValor && (
+        {!!order.totalValor && (
           <p className={styles.total}>Total: <strong>R$ {order.totalValor.toFixed(2)}</strong></p>
         )}
       </div>

@@ -85,4 +85,9 @@ public class Estoque {
 
     @Column(name = "data_ultima_atualizacao")
     private LocalDateTime dataUltimaAtualizacao;
+
+    // Não aceitando, o pedido do site fica preso ao tipo da disponibilidade (V11)
+    @Builder.Default
+    @Column(name = "aceita_negociacao", nullable = false)
+    private boolean aceitaNegociacao = true;
 }

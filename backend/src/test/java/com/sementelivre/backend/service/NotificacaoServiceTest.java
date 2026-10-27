@@ -7,29 +7,27 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.sementelivre.backend.dto.NotificacaoRequestDTO;
 import com.sementelivre.backend.dto.NotificacaoResponseDTO;
-import com.sementelivre.backend.entity.Itens;
 import com.sementelivre.backend.entity.Notificacao;
-import com.sementelivre.backend.entity.Pedido;
-import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.Proprietario;
 import com.sementelivre.backend.entity.Usuario;
-import com.sementelivre.backend.entity.enums.TipoPedido;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 import com.sementelivre.backend.repository.NotificacaoRepository;
 
@@ -81,8 +79,26 @@ class NotificacaoServiceTest {
         );
     }
 
+    @AfterEach
+    void limparAutenticacao() {
+        SecurityContextHolder.clearContext();
+    }
+
+    // Leitura, edição e exclusão só valem para o dono da notificação.
+    private void autenticarComoDono() {
+        autenticarComo(proprietarioId);
+    }
+
+    private void autenticarComo(UUID usuarioId) {
+        Usuario usuario = new Usuario();
+        usuario.setId(usuarioId);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(usuario, null, List.of()));
+    }
+
     @Test
     void deveCriarNotificacao() {
+        autenticarComoDono();
         when(entityManager.find(Proprietario.class, proprietarioId)).thenReturn(proprietario);
         when(notificacaoRepository.saveAndFlush(any(Notificacao.class))).thenReturn(notificacao);
 
@@ -96,6 +112,7 @@ class NotificacaoServiceTest {
 
     @Test
     void naoDeveCriarNotificacaoSeProprietarioNaoExistir() {
+        autenticarComoDono();
         when(entityManager.find(Proprietario.class, proprietarioId)).thenReturn(null);
 
         assertThrows(RecursoNaoEncontradoException.class,
@@ -106,6 +123,7 @@ class NotificacaoServiceTest {
 
     @Test
     void deveBuscarNotificacaoPorId() {
+        autenticarComoDono();
         when(notificacaoRepository.findById(notificacaoId)).thenReturn(Optional.of(notificacao));
 
         NotificacaoResponseDTO resposta = notificacaoService.buscarPorId(notificacaoId);
@@ -123,7 +141,9 @@ class NotificacaoServiceTest {
 
     @Test
     void deveListarNotificacoes() {
-        when(notificacaoRepository.findAll()).thenReturn(List.of(notificacao));
+        autenticarComoDono();
+        when(notificacaoRepository.findByProprietarioIdOrderByDataGeracaoDesc(proprietarioId))
+                .thenReturn(List.of(notificacao));
 
         List<NotificacaoResponseDTO> resposta = notificacaoService.listar();
 
@@ -139,8 +159,8 @@ class NotificacaoServiceTest {
                 null
         );
 
+        autenticarComoDono();
         when(notificacaoRepository.findById(notificacaoId)).thenReturn(Optional.of(notificacao));
-        when(entityManager.find(Proprietario.class, proprietarioId)).thenReturn(proprietario);
         when(notificacaoRepository.save(notificacao)).thenReturn(notificacao);
 
         NotificacaoResponseDTO resposta = notificacaoService.atualizar(notificacaoId, novosDados);
@@ -151,6 +171,7 @@ class NotificacaoServiceTest {
 
     @Test
     void deveMarcarNotificacaoComoLida() {
+        autenticarComoDono();
         when(notificacaoRepository.findById(notificacaoId)).thenReturn(Optional.of(notificacao));
         when(notificacaoRepository.save(notificacao)).thenReturn(notificacao);
 
@@ -162,6 +183,7 @@ class NotificacaoServiceTest {
 
     @Test
     void deveDeletarNotificacao() {
+        autenticarComoDono();
         when(notificacaoRepository.findById(notificacaoId)).thenReturn(Optional.of(notificacao));
 
         notificacaoService.deletar(notificacaoId);
@@ -179,84 +201,46 @@ class NotificacaoServiceTest {
         verify(notificacaoRepository, never()).delete(any(Notificacao.class));
     }
 
-    // ---- CDU-26: notificacao automatica quando o pedido e confirmado (#69) ----
+    @Test
+    void deveMarcarNotificacaoComoNaoLida() {
+        notificacao.marcarComoLida();
 
-    /** Monta um pedido confirmado com 1 solicitante e 2 itens. */
-    private Pedido pedidoConfirmado() {
+        autenticarComoDono();
+        when(notificacaoRepository.findById(notificacaoId)).thenReturn(Optional.of(notificacao));
+        when(notificacaoRepository.save(notificacao)).thenReturn(notificacao);
 
-        Usuario solicitante = mock(Usuario.class);
-        when(solicitante.getNome()).thenReturn("Maria Silva");
+        NotificacaoResponseDTO resposta = notificacaoService.marcarComoNaoLida(notificacaoId);
 
-        Produto feijao = Produto.builder().nomePopular("Feijao Crioulo").build();
-        Produto milho = Produto.builder().nomePopular("Milho").build();
-
-        return Pedido.builder()
-                .id(UUID.randomUUID())
-                .tipoPedido(TipoPedido.TROCA)
-                .usuarioSolicitante(solicitante)
-                .proprietarioRecebedor(proprietario)
-                .itens(List.of(
-                        Itens.builder().produto(feijao).quantidade(2.0).build(),
-                        Itens.builder().produto(milho).quantidade(1.5).build()))
-                .build();
+        assertFalse(resposta.lida());
+        assertNull(resposta.dataLeitura());
     }
 
-    /** Captura a notificacao que o service mandou salvar. */
-    private Notificacao notificacaoSalva(Pedido pedido) {
+    // ---- Seguranca: ninguem mexe na notificacao de outra pessoa ----
 
-        ArgumentCaptor<Notificacao> captor = ArgumentCaptor.forClass(Notificacao.class);
+    @Test
+    void naoDeveCriarNotificacaoEmNomeDeOutraPessoa() {
+        autenticarComo(UUID.randomUUID());
 
-        when(notificacaoRepository.saveAndFlush(captor.capture())).thenReturn(notificacao);
+        assertThrows(RecursoNaoEncontradoException.class,
+                () -> notificacaoService.criar(dto));
 
-        notificacaoService.criarParaPedidoConfirmado(pedido);
-
-        return captor.getValue();
+        verify(notificacaoRepository, never()).saveAndFlush(any(Notificacao.class));
     }
 
     @Test
-    void mensagemDoPedidoConfirmadoDeveTerTipoSolicitanteEItens() {
-        Pedido pedido = pedidoConfirmado();
+    void naoDeveMarcarComoLidaNotificacaoDeOutraPessoa() {
+        autenticarComo(UUID.randomUUID());
+        when(notificacaoRepository.findById(notificacaoId)).thenReturn(Optional.of(notificacao));
 
-        String mensagem = notificacaoSalva(pedido).getMensagem();
+        assertThrows(RecursoNaoEncontradoException.class,
+                () -> notificacaoService.marcarComoLida(notificacaoId));
 
-        assertTrue(mensagem.contains("Pedido de TROCA confirmado"), mensagem);
-        assertTrue(mensagem.contains("Solicitante: Maria Silva"), mensagem);
-        assertTrue(mensagem.contains("Feijao Crioulo"), mensagem);
-        assertTrue(mensagem.contains("Milho"), mensagem);
+        assertFalse(notificacao.isLida());
     }
 
     @Test
-    void mensagemDeveMostrarQuantidadeSemCasaDecimalDesnecessaria() {
-        Pedido pedido = pedidoConfirmado();
-
-        String mensagem = notificacaoSalva(pedido).getMensagem();
-
-        assertTrue(mensagem.contains("2 x Feijao Crioulo"), mensagem);
-        assertTrue(mensagem.contains("1.5 x Milho"), mensagem);
-    }
-
-    @Test
-    void notificacaoDoPedidoConfirmadoDeveManterTituloEDestinatario() {
-        Pedido pedido = pedidoConfirmado();
-
-        Notificacao salva = notificacaoSalva(pedido);
-
-        // O titulo e usado pelo teste de integracao do Dev 8: nao pode mudar.
-        assertEquals("Pedido confirmado", salva.getTitulo());
-        assertFalse(salva.isLida());
-    }
-
-    @Test
-    void mensagemDeveFuncionarQuandoPedidoNaoTemItens() {
-        Pedido pedido = Pedido.builder()
-                .id(UUID.randomUUID())
-                .tipoPedido(TipoPedido.DOACAO)
-                .proprietarioRecebedor(proprietario)
-                .itens(List.of())
-                .build();
-
-        String mensagem = notificacaoSalva(pedido).getMensagem();
-
-        assertEquals("Pedido de DOACAO confirmado.", mensagem);
+    void listarNaoDeveFuncionarSemUsuarioLogado() {
+        assertThrows(RecursoNaoEncontradoException.class,
+                () -> notificacaoService.listar());
     }
 }

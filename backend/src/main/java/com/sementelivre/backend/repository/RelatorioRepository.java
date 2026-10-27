@@ -3,6 +3,9 @@ package com.sementelivre.backend.repository;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.sementelivre.backend.entity.Relatorio;
@@ -28,4 +31,11 @@ public interface RelatorioRepository extends BaseRepository<Relatorio, UUID> {
      * Mesmo histórico, filtrado por tipo de relatório (CDU-25).
      */
     List<Relatorio> findByProprietarioIdAndTipoOrderByDataGeracaoDesc(UUID proprietarioId, TipoRelatorio tipo);
+
+    /** Remove o histórico de relatórios do proprietário na exclusão da conta (LGPD). */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from Relatorio r where r.proprietario.id = :proprietarioId")
+    void deleteAllByProprietarioId(@Param("proprietarioId") UUID proprietarioId);
+
+    long countByProprietarioId(UUID proprietarioId);
 }

@@ -6,6 +6,7 @@ public record ItemPedidoResponseDTO(
 
         UUID id,
         UUID produtoId,
+        String nomeProduto,
         Double quantidade,
         Double precoUnitario
 

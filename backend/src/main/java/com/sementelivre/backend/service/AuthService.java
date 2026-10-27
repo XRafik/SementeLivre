@@ -109,7 +109,7 @@ public class AuthService {
 
     @Transactional
     public void solicitarRecuperacaoSenha(SolicitarRecuperacaoDTO dto) {
-        var usuarioOpt = usuarioRepository.findByPessoaEmail(dto.email());
+        var usuarioOpt = usuarioRepository.findByPessoaEmailIgnoreCase(Pessoa.normalizarEmail(dto.email()));
         if (usuarioOpt.isEmpty()) {
             return; // Retorno silencioso por segurança
         }

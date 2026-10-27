@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 public class ProprietarioCreateRequestDTO extends UsuarioCreateRequestDTO {
 
     @NotBlank(message = "O RG é obrigatório para proprietário")
-    @Size(max = 20)
+    @Size(max = 20, message = "O RG deve ter no máximo 20 caracteres")
     private String rg;
 
     private Boolean exibirNoSitePublico = false;

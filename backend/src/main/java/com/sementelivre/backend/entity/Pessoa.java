@@ -3,6 +3,7 @@ package com.sementelivre.backend.entity;
 import com.sementelivre.backend.entity.enums.TipoDocumento;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.UUID;
 
 @Entity
@@ -98,7 +99,16 @@ public abstract class Pessoa {
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = normalizarEmail(email);
+    }
+
+    /**
+     * E-mail nao diferencia maiusculas: "Maria@x.com" e "maria@x.com" sao a mesma
+     * caixa postal. Grava sempre em minusculas e sem espacos nas pontas, para a
+     * constraint uk_pessoa_email barrar tambem a variacao de caixa.
+     */
+    public static String normalizarEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
     public Logradouro getLogradouro() {

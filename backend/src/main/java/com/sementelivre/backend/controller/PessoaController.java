@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.sementelivre.backend.dto.LogradouroDTO;
 import com.sementelivre.backend.dto.PessoaResponseDTO;
 import com.sementelivre.backend.dto.PessoaUpdateRequestDTO;
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/pessoas")
+@Tag(name = "Pessoas", description = "Dados pessoais (titular ou admin) e exclusão de conta (LGPD).")
 public class PessoaController {
 
     private final PessoaService pessoaService;
@@ -27,7 +30,9 @@ public class PessoaController {
         this.pessoaService = pessoaService;
     }
 
+    // CPF, RG, e-mail e endereco de todo mundo: so admin lista.
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<PessoaResponseDTO>> listar() {
         List<PessoaResponseDTO> pessoas = pessoaService.listarTodas().stream()
                 .map(this::mapToResponse)
@@ -35,7 +40,9 @@ public class PessoaController {
         return ResponseEntity.ok(pessoas);
     }
 
+    // Cada um consulta so os proprios dados; admin consulta qualquer um.
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id == principal.id")
     public ResponseEntity<PessoaResponseDTO> buscarPorId(@PathVariable UUID id) {
         Pessoa pessoa = pessoaService.buscarPorId(id);
         return ResponseEntity.ok(mapToResponse(pessoa));
@@ -54,6 +61,18 @@ public class PessoaController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deletar(@PathVariable UUID id) {
         pessoaService.deletar(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Exclusão de conta pelo proprio titular (LGPD, direito ao esquecimento).
+     * Diferente de {@link #deletar}, apaga antes os dados operacionais da
+     * pessoa, porque as chaves estrangeiras usam ON DELETE RESTRICT.
+     */
+    @DeleteMapping("/{id}/conta")
+    @PreAuthorize("hasRole('ADMIN') or #id == principal.id")
+    public ResponseEntity<Void> excluirConta(@PathVariable UUID id) {
+        pessoaService.excluirConta(id);
         return ResponseEntity.noContent().build();
     }
 

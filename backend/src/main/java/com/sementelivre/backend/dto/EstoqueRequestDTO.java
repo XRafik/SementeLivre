@@ -34,7 +34,15 @@ public record EstoqueRequestDTO(
         Disponibilidade disponibilidade,
 
         @NotNull(message = "Tipo de movimentação é obrigatório")
-        TipoMovimentacao tipoMovimentacao
+        TipoMovimentacao tipoMovimentacao,
 
+        // Opcional: ausente, a oferta nova aceita negociar e a existente mantém o que tinha
+        Boolean aceitaNegociacao
 ) {
+    public EstoqueRequestDTO(UUID proprietarioId, UUID produtoId, String descricao, Double preco,
+            Double quantidade, Pesagem tipoPesagem, Disponibilidade disponibilidade,
+            TipoMovimentacao tipoMovimentacao) {
+        this(proprietarioId, produtoId, descricao, preco, quantidade, tipoPesagem, disponibilidade,
+                tipoMovimentacao, null);
+    }
 }

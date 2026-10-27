@@ -1,0 +1,100 @@
+.page { display: flex; flex-direction: column; gap: var(--space-4); animation: slideUp 0.25s ease; }
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.back:hover { color: var(--color-primary); }
+
+.intro {
+  background: var(--color-primary-light);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+}
+
+.introTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary-dark);
+  margin-bottom: var(--space-2);
+}
+
+.introText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.updated {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.section { margin-bottom: var(--space-5); }
+.section:last-child { margin-bottom: 0; }
+
+.sectionTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+
+.text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+  margin-bottom: var(--space-2);
+}
+
+.text:last-child { margin-bottom: 0; }
+
+.list { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+
+.item {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.bullet {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.strong { color: var(--color-text); font-weight: var(--font-weight-semibold); }
+
+.infoGrid { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.infoRow {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.link { color: var(--color-primary-dark); font-weight: var(--font-weight-semibold); }

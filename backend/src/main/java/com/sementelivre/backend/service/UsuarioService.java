@@ -77,7 +77,11 @@ public class UsuarioService {
     }
 
     // Os tokens referenciam usuario_t com ON DELETE RESTRICT, entao saem antes da conta.
+    // A associacao ManyToMany nao tem cascade: sem limpar o conjunto antes, os
+    // registros de usuario_role_t sobrariam e a exclusao bateria em 409.
     private void remover(Usuario usuario) {
+        usuario.getRoles().clear();
+        usuarioRepository.flush();
         refreshTokenRepository.deleteByUsuario(usuario);
         tokenRecuperacaoSenhaRepository.deleteByUsuario(usuario);
         usuarioRepository.delete(usuario);

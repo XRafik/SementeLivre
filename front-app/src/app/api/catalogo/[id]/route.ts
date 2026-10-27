@@ -32,7 +32,13 @@ export async function GET(
 
     const data = await response.json();
 
-    return NextResponse.json(data);
+    // Ver comentário em ../route.ts: o caminho da foto precisa da origem do backend.
+    const urlFoto =
+      typeof data?.urlFoto === 'string' && data.urlFoto.startsWith('/uploads/')
+        ? `${backendUrl}${data.urlFoto}`
+        : data?.urlFoto;
+
+    return NextResponse.json({ ...data, urlFoto });
   } catch {
     return NextResponse.json(
       { error: 'Não foi possível conectar ao backend.' },

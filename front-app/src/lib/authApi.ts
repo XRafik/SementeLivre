@@ -10,9 +10,10 @@
  *  GET  /auth/me                → retorna PerfilUsuario (conta autenticada, com endereço e RG)
  *  POST /auth/alterar-senha     → retorna { mensagem: string }; 400 com fieldErrors "senhaAtual" se a atual não confere
  *  PUT  /api/proprietarios/{id} → atualiza dados pessoais e endereço do próprio proprietário
+ *  DELETE /api/pessoas/{id}/conta → exclui a conta do titular (LGPD); 204
  */
 
-import { apiGet, apiPost, apiPut, saveTokens, clearTokens, ApiError } from './api';
+import { apiGet, apiPost, apiPut, apiDelete, saveTokens, clearTokens, ApiError } from './api';
 import { PerfilUsuario, PessoaUpdateRequest, Proprietario, ProprietarioCadastroRequest } from '@/types/user';
 
 // ── DTOs (espelham os Records do backend) ─────────────────────────────────────
@@ -92,6 +93,17 @@ export function atualizarProprietarioApi(id: string, dados: PessoaUpdateRequest)
 
 export async function alterarSenhaApi(senhaAtual: string, novaSenha: string): Promise<void> {
   await apiPost<MensagemResponse>('/auth/alterar-senha', { senhaAtual, novaSenha });
+}
+
+/**
+ * Exclusão de conta pelo próprio titular (LGPD).
+ *
+ * O backend remove os dados operacionais antes do cadastro porque as chaves
+ * estrangeiras usam ON DELETE RESTRICT. Os produtos continuam no catálogo
+ * compartilhado; o que sai é o estoque da pessoa.
+ */
+export async function excluirContaApi(id: string): Promise<void> {
+  await apiDelete<void>(`/api/pessoas/${id}/conta`);
 }
 
 // ── logout (limpa tokens localmente) ─────────────────────────────────────────

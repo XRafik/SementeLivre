@@ -28,8 +28,20 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/devdb
       SPRING_DATASOURCE_USERNAME: devuser
       SPRING_DATASOURCE_PASSWORD: devpassword
+      # E-mail (cópia do pedido, recuperação de senha). Valores em backend/.env;
+      # sem MAIL_USERNAME/MAIL_PASSWORD nenhum e-mail é enviado.
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
     ports:
       - "8080:8080"
+    volumes:
+      # As fotos de produto ficam em disco dentro do container; sem este volume
+      # elas se perdem a cada `docker compose up --build` e o banco continua
+      # apontando para arquivos que não existem mais.
+      - uploads_data:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -38,6 +50,7 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
 
 networks:
   app-network:

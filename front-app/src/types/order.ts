@@ -27,7 +27,7 @@ export interface ItemPedido {
   idProduto: string;
   nomePopular: string;
   quantidade: number;
-  tipoPesagem: string;
+  tipoPesagem?: string;
   precoUnitario?: number;
 }
 
@@ -42,4 +42,22 @@ export interface Pedido {
   dataPedido: Date;
   itens: ItemPedido[];
   totalValor?: number;
+}
+
+/** Filtros do histórico de pedidos (GET /pedidos). Datas em ISO (yyyy-MM-dd). */
+export interface FiltroPedidos {
+  dataInicio?: string;
+  dataFim?: string;
+  tipoPedido?: TipoPedido;
+  produtoId?: string;
+  status?: StatusPedido;
+}
+
+/** Dados do formulário de novo pedido enviados ao backend. */
+export interface NovoPedido {
+  tipoPedido: TipoPedido;
+  nomeRecebedor: string;
+  contatoRecebedor?: string;
+  mensagemOpcional?: string;
+  itens: { idProduto: string; quantidade: number; precoUnitario?: number }[];
 }

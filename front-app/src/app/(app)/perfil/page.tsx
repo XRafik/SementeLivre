@@ -11,13 +11,14 @@
  */
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/feedback/Toast';
 import { useRouter } from 'next/navigation';
-import { Lock, LogOut, Phone, MapPin, Hash, ChevronRight, User, Shield, Mail, Pencil } from 'lucide-react';
-import { alterarSenhaApi, atualizarProprietarioApi } from '@/lib/authApi';
+import { Lock, LogOut, Phone, MapPin, Hash, ChevronRight, User, Shield, Mail, Pencil, Accessibility, Trash2 } from 'lucide-react';
+import { alterarSenhaApi, atualizarProprietarioApi, excluirContaApi } from '@/lib/authApi';
 import { isApiError, renovarToken } from '@/lib/api';
 import { aplicarErrosDaApi, comMascara } from '@/lib/forms';
 import {
@@ -29,6 +30,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { ZoomControl } from '@/components/shared/ZoomControl';
+import { InstitutionalLogo } from '@/components/shared/InstitutionalLogo';
 import styles from './perfil.module.css';
 
 const formStack: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' };
@@ -62,6 +65,9 @@ export default function PerfilPage() {
   const [pwdError, setPwdError] = useState('');
   const [editando, setEditando] = useState(false);
   const [formError, setFormError] = useState('');
+  const [showExcluir, setShowExcluir] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [confirmacao, setConfirmacao] = useState('');
 
   const edicao = useForm<PerfilForm>({ resolver: zodResolver(perfilSchema) });
   const senha = useForm<AlterarSenhaForm>({ resolver: zodResolver(alterarSenhaSchema), defaultValues: senhaVazia });
@@ -71,6 +77,33 @@ export default function PerfilPage() {
   const handleLogout = async () => {
     await logout();
     router.push('/entrar');
+  };
+
+  // Exclusão de conta: pede a palavra "EXCLUIR" para não ser disparada por engano.
+  const EXCLUIR_SENHA = 'EXCLUIR';
+  const podeExcluir = confirmacao.trim().toUpperCase() === EXCLUIR_SENHA;
+
+  const fecharExclusao = () => {
+    setShowExcluir(false);
+    setConfirmacao('');
+  };
+
+  const handleExcluirConta = async () => {
+    if (!perfil || !podeExcluir) return;
+    setExcluindo(true);
+    try {
+      await excluirContaApi(perfil.id);
+      // A conta não existe mais: limpa a sessão local antes de redirecionar.
+      await logout();
+      showToast('Sua conta foi excluída.', 'success');
+      router.push('/entrar');
+    } catch (err) {
+      setExcluindo(false);
+      showToast(
+        isApiError(err) ? err.message : 'Não foi possível excluir a conta. Tente novamente.',
+        'error'
+      );
+    }
   };
 
   const iniciarEdicao = () => {
@@ -300,11 +333,35 @@ export default function PerfilPage() {
         </button>
       </div>
 
-      {/* Sobre */}
+      {/* Acessibilidade */}
       <div className={styles.card}>
-        <p className={styles.about}>Semente Livre v1.0.0</p>
-        <p className={styles.about}>IF Sudeste MG — Campus Rio Pomba</p>
-        <p className={styles.about}>Gestão de bancos de produtos crioulos para produtores rurais familiares.</p>
+        <div className={styles.cardHeader}>
+          <Accessibility size={14} strokeWidth={2.5} className={styles.cardHeaderIcon} />
+          <p className={styles.cardTitle}>Acessibilidade</p>
+        </div>
+        <ZoomControl />
+      </div>
+
+      {/* Sobre e políticas */}
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <Shield size={14} strokeWidth={2.5} className={styles.cardHeaderIcon} />
+          <p className={styles.cardTitle}>Sobre e Privacidade</p>
+        </div>
+        <InstitutionalLogo align="start" credit />
+        <div className={styles.about}>Semente Livre v1.0.0</div>
+        <div className={styles.about}>IF Sudeste MG — Campus Rio Pomba</div>
+        <div className={styles.about}>Gestão de bancos de produtos crioulos para produtores rurais familiares.</div>
+        <div className={styles.legalLinks}>
+          <Link href="/privacidade" className={styles.legalLink}>
+            Política de Privacidade
+            <ChevronRight size={15} strokeWidth={2.5} />
+          </Link>
+          <Link href="/termos" className={styles.legalLink}>
+            Termos de Uso
+            <ChevronRight size={15} strokeWidth={2.5} />
+          </Link>
+        </div>
       </div>
 
       {/* Logout */}
@@ -312,6 +369,20 @@ export default function PerfilPage() {
         <LogOut size={17} strokeWidth={2} />
         Sair do Aplicativo
       </button>
+
+      {/* Exclusão de conta (LGPD) */}
+      <div className={styles.dangerZone}>
+        <p className={styles.dangerTitle}>Excluir conta</p>
+        <p className={styles.dangerText}>
+          Remove seu cadastro, seus pedidos e seu estoque. Os produtos que você cadastrou
+          continuam visíveis no catálogo, sem os seus dados pessoais. Esta ação não pode ser
+          desfeita.
+        </p>
+        <button className={styles.dangerBtn} onClick={() => setShowExcluir(true)}>
+          <Trash2 size={16} strokeWidth={2} />
+          Excluir minha conta
+        </button>
+      </div>
 
       {/* Logout confirm */}
       <ConfirmDialog
@@ -342,6 +413,36 @@ export default function PerfilPage() {
           <div style={formRow}>
             <Button type="button" variant="ghost" onClick={fecharSenha} fullWidth>Cancelar</Button>
             <Button type="submit" variant="primary" loading={senha.formState.isSubmitting} fullWidth>Salvar</Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* Exclusão de conta: exige digitar EXCLUIR */}
+      <Dialog isOpen={showExcluir} onClose={fecharExclusao} title="Excluir conta">
+        <form style={formStack} onSubmit={(e) => { e.preventDefault(); handleExcluirConta(); }} noValidate>
+          <div style={alertBox} role="alert">
+            Esta ação é permanente e remove seu acesso ao aplicativo. Para confirmar, digite{' '}
+            <strong>EXCLUIR</strong> no campo abaixo.
+          </div>
+          <Input
+            label="Digite EXCLUIR para confirmar"
+            value={confirmacao}
+            onChange={(e) => setConfirmacao(e.target.value)}
+            placeholder={EXCLUIR_SENHA}
+            autoComplete="off"
+            required
+          />
+          <div style={formRow}>
+            <Button type="button" variant="ghost" onClick={fecharExclusao} fullWidth>Cancelar</Button>
+            <Button
+              type="submit"
+              variant="danger"
+              loading={excluindo}
+              disabled={!podeExcluir}
+              fullWidth
+            >
+              Excluir conta
+            </Button>
           </div>
         </form>
       </Dialog>

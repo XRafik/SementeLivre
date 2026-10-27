@@ -1,29 +1,42 @@
 package com.sementelivre.backend.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.sementelivre.backend.dto.CompradorDTO;
 import com.sementelivre.backend.dto.ItemPedidoRequestDTO;
 import com.sementelivre.backend.dto.ItemPedidoResponseDTO;
+import com.sementelivre.backend.dto.PedidoFiltroDTO;
+import com.sementelivre.backend.dto.PedidoPublicoRequestDTO;
+import com.sementelivre.backend.dto.PedidoPublicoResponseDTO;
 import com.sementelivre.backend.dto.PedidoRequestDTO;
 import com.sementelivre.backend.dto.PedidoResponseDTO;
 import com.sementelivre.backend.dto.PedidoUpdateDTO;
+import com.sementelivre.backend.entity.Comprador;
 import com.sementelivre.backend.entity.Estoque;
 import com.sementelivre.backend.entity.Itens;
 import com.sementelivre.backend.entity.Pedido;
 import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.Proprietario;
 import com.sementelivre.backend.entity.Usuario;
+import com.sementelivre.backend.entity.enums.Disponibilidade;
 import com.sementelivre.backend.entity.enums.StatusPedido;
-import com.sementelivre.backend.entity.repository.EstoqueRepository;
-import com.sementelivre.backend.entity.repository.PedidoRepository;
-import com.sementelivre.backend.entity.repository.ProdutoRepository;
+import com.sementelivre.backend.entity.enums.TipoPedido;
+import com.sementelivre.backend.repository.EstoqueRepository;
+import com.sementelivre.backend.repository.PedidoRepository;
+import com.sementelivre.backend.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.EstoqueInsuficienteException;
+import com.sementelivre.backend.exception.NegociacaoNaoPermitidaException;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 import com.sementelivre.backend.exception.TransicaoStatusInvalidaException;
 import com.sementelivre.backend.repository.UsuarioRepository;
@@ -32,14 +45,16 @@ import com.sementelivre.backend.repository.UsuarioRepository;
  * Regras de negocio do pedido (issue #67).
  *
  * Ciclo de vida e estoque andam juntos:
- *   - criar/alterar  : valida se ha estoque, mas NAO baixa (pedido nasce PENDENTE)
- *   - confirmar      : revalida e baixa o estoque
- *   - cancelar       : restaura o estoque apenas se ele tinha sido baixado
- *   - excluir        : restaura o estoque se o pedido estava CONFIRMADO (CDU-14)
+ *   - criar/alterar  : valida e reserva (baixa) o estoque; pedido nasce PENDENTE
+ *   - confirmar      : apenas muda o status, o estoque ja foi baixado no registro
+ *   - cancelar       : restaura o estoque reservado (PENDENTE ou CONFIRMADO)
+ *   - excluir        : restaura o estoque se o pedido ainda nao estava CANCELADO (CDU-14)
  *
- * A baixa so acontece na confirmacao porque um pedido PENDENTE ainda pode ser
- * recusado pelo proprietario; reservar estoque antes disso bloquearia produto
- * de outros usuarios sem necessidade.
+ * Reservar no registro impede que dois pedidos PENDENTE disputem a mesma
+ * quantidade; um segundo cancelamento e barrado pela transicao de status, o
+ * que evita restaurar o estoque duas vezes. As operacoes que mudam o pedido
+ * travam a linha dele (buscarParaAtualizacao), senao dois cancelamentos
+ * simultaneos passariam juntos pela validacao de transicao.
  */
 @Service
 public class PedidoService {
@@ -49,19 +64,28 @@ public class PedidoService {
     private final EstoqueRepository estoqueRepository;
     private final UsuarioRepository usuarioRepository;
     private final NotificacaoService notificacaoService;
+    private final ApplicationEventPublisher eventos;
+
+    // Ofertas que aparecem no catálogo público e o tipo de pedido que cada uma gera
+    private static final Map<Disponibilidade, TipoPedido> TIPO_POR_DISPONIBILIDADE_PUBLICA = Map.of(
+            Disponibilidade.PARA_VENDA, TipoPedido.VENDA,
+            Disponibilidade.PARA_TROCA, TipoPedido.TROCA,
+            Disponibilidade.PARA_DOACAO, TipoPedido.DOACAO);
 
     public PedidoService(
             PedidoRepository pedidoRepository,
             ProdutoRepository produtoRepository,
             EstoqueRepository estoqueRepository,
             UsuarioRepository usuarioRepository,
-            NotificacaoService notificacaoService) {
+            NotificacaoService notificacaoService,
+            ApplicationEventPublisher eventos) {
 
         this.pedidoRepository = pedidoRepository;
         this.produtoRepository = produtoRepository;
         this.estoqueRepository = estoqueRepository;
         this.usuarioRepository = usuarioRepository;
         this.notificacaoService = notificacaoService;
+        this.eventos = eventos;
     }
 
     // CREATE
@@ -74,20 +98,81 @@ public class PedidoService {
         pedido.setStatus(StatusPedido.PENDENTE);
         pedido.setUsuarioSolicitante(buscarUsuario(dto.usuarioSolicitanteId()));
         pedido.setProprietarioRecebedor(referenciaProprietario(dto.proprietarioRecebedorId()));
+        pedido.setComprador(novoComprador(dto.comprador()));
 
         preencherItens(pedido, dto.itens());
 
         reservarEstoque(pedido);
 
         // Os itens sao persistidos junto pelo cascade configurado em Pedido.itens
-        return mapToResponse(pedidoRepository.save(pedido));
+        Pedido registrado = pedidoRepository.save(pedido);
+        notificacaoService.criarParaPedidoRegistrado(registrado);
+        publicarCopiaDoPedido(registrado);
+
+        return mapToResponse(registrado);
+    }
+
+    // CREATE - pedido feito pelo site público, sem login.
+    // Produto, produtor e preço saem da oferta. O tipo é o da oferta, a não
+    // ser que o produtor aceite negociar e quem pede proponha outro.
+    @Transactional
+    public PedidoPublicoResponseDTO criarPublico(PedidoPublicoRequestDTO dto) {
+
+        Estoque oferta = estoqueRepository.findPorIdParaAtualizacao(dto.estoqueId())
+                .filter(estoque -> TIPO_POR_DISPONIBILIDADE_PUBLICA.containsKey(estoque.getDisponibilidade()))
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Oferta não encontrada no catálogo: " + dto.estoqueId()));
+
+        TipoPedido tipo = tipoDoPedidoPublico(oferta, dto.tipoPedido());
+
+        Pedido pedido = new Pedido();
+        pedido.setTipoPedido(tipo);
+        pedido.setMensagemOpcional(textoOuNulo(dto.mensagemOpcional()));
+        pedido.setStatus(StatusPedido.PENDENTE);
+        pedido.setProprietarioRecebedor(oferta.getProprietario());
+        pedido.setComprador(Comprador.builder()
+                .nome(dto.nome().trim())
+                .email(dto.email().trim())
+                .telefone(textoOuNulo(dto.telefone()))
+                .build());
+        pedido.adicionarItem(Itens.builder()
+                .produto(oferta.getProduto())
+                .quantidade(dto.quantidade())
+                // Preço só vale para venda: troca ou doação proposta não tem total
+                .precoUnitario(tipo == TipoPedido.VENDA ? oferta.getPreco() : null)
+                .build());
+
+        reservarEstoque(pedido);
+
+        Pedido registrado = pedidoRepository.save(pedido);
+        notificacaoService.criarParaPedidoRegistrado(registrado);
+        publicarCopiaDoPedido(registrado);
+
+        return new PedidoPublicoResponseDTO(
+                registrado.getId(),
+                registrado.getTipoPedido(),
+                registrado.getStatus(),
+                registrado.getDataPedido(),
+                oferta.getProduto().getNomePopular(),
+                dto.quantidade());
     }
 
     // READ - listar pedidos do proprietario
     @Transactional(readOnly = true)
     public List<PedidoResponseDTO> listarTodos(UUID proprietarioId) {
+        return listarTodos(proprietarioId, PedidoFiltroDTO.vazio());
+    }
+
+    // READ - historico filtrado (periodo, tipo, semente, status), mais recente primeiro.
+    // O volume por proprietario e pequeno, entao filtrar em memoria sobre a
+    // consulta que ja traz os itens evita uma query dinamica so para isso.
+    @Transactional(readOnly = true)
+    public List<PedidoResponseDTO> listarTodos(UUID proprietarioId, PedidoFiltroDTO filtro) {
         return pedidoRepository.findAllByProprietarioRecebedorId(proprietarioId)
                 .stream()
+                .filter(pedido -> atendeFiltro(pedido, filtro))
+                .sorted(Comparator.comparing(Pedido::getDataPedido,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::mapToResponse)
                 .toList();
     }
@@ -102,7 +187,7 @@ public class PedidoService {
     @Transactional
     public PedidoResponseDTO atualizar(UUID id, PedidoUpdateDTO dto) {
 
-        Pedido pedido = buscarEntidadeComItens(id);
+        Pedido pedido = buscarParaAtualizacao(id);
 
         // So faz sentido alterar um pedido que ainda nao movimentou estoque.
         // Alterar um CONFIRMADO exigiria estornar a baixa antiga e refazer a
@@ -131,12 +216,11 @@ public class PedidoService {
     @Transactional
     public void excluir(UUID id) {
 
-        Pedido pedido = buscarEntidadeComItens(id);
+        Pedido pedido = buscarParaAtualizacao(id);
 
         // Se o estoque chegou a ser baixado, devolve antes de apagar o pedido,
         // senao a quantidade some do sistema junto com o registro.
-        if (pedido.getStatus() == StatusPedido.PENDENTE
-            || pedido.getStatus() == StatusPedido.CONFIRMADO) {
+        if (reservouEstoque(pedido)) {
             devolverEstoque(pedido);
         }
 
@@ -150,7 +234,7 @@ public class PedidoService {
     @Transactional
     public PedidoResponseDTO confirmar(UUID id) {
 
-        Pedido pedido = buscarEntidadeComItens(id);
+        Pedido pedido = buscarParaAtualizacao(id);
         validarTransicao(pedido, StatusPedido.CONFIRMADO);
 
         pedido.setStatus(StatusPedido.CONFIRMADO);
@@ -163,17 +247,18 @@ public class PedidoService {
     @Transactional
     public PedidoResponseDTO cancelar(UUID id) {
 
-        Pedido pedido = buscarEntidadeComItens(id);
+        Pedido pedido = buscarParaAtualizacao(id);
         validarTransicao(pedido, StatusPedido.CANCELADO);
 
-        if (pedido.getStatus() == StatusPedido.PENDENTE
-            || pedido.getStatus() == StatusPedido.CONFIRMADO) {
+        if (reservouEstoque(pedido)) {
             devolverEstoque(pedido);
         }
 
         pedido.setStatus(StatusPedido.CANCELADO);
+        Pedido cancelado = pedidoRepository.save(pedido);
+        notificacaoService.criarParaPedidoCancelado(cancelado);
 
-        return mapToResponse(pedidoRepository.save(pedido));
+        return mapToResponse(cancelado);
     }
 
     // REGRAS DE ESTOQUE
@@ -183,22 +268,29 @@ public class PedidoService {
 
         UUID proprietarioId = pedido.getProprietarioRecebedor().getId();
 
-        quantidadePorProduto(pedido).forEach((produtoId, quantidadePedida) -> {
+        quantidadePorProduto(pedido).forEach((produtoId, demanda) -> {
 
             Estoque estoque = estoqueRepository
                     .findParaAtualizacao(proprietarioId, produtoId)
                     .orElseThrow(() -> new EstoqueInsuficienteException(
-                            "O proprietário " + proprietarioId
-                                    + " não possui estoque do produto " + produtoId));
+                            "O produto " + demanda.nome()
+                                    + " não está disponível no estoque deste proprietário."));
 
-            if (estoque.getQuantidade() < quantidadePedida) {
+            // O proprietario tirou o produto de circulacao: ter saldo nao basta
+            if (estoque.getDisponibilidade() == Disponibilidade.INDISPONIVEL) {
                 throw new EstoqueInsuficienteException(
-                        "Estoque insuficiente para o produto " + produtoId
-                                + ": disponível " + estoque.getQuantidade()
-                                + ", solicitado " + quantidadePedida);
+                        "O produto " + demanda.nome()
+                                + " está marcado como indisponível no estoque deste proprietário.");
             }
 
-            estoque.setQuantidade(estoque.getQuantidade() - quantidadePedida);
+            if (estoque.getQuantidade() < demanda.quantidade()) {
+                throw new EstoqueInsuficienteException(
+                        "Estoque insuficiente para o produto " + demanda.nome()
+                                + ": disponível " + formatarQuantidade(estoque.getQuantidade())
+                                + ", solicitado " + formatarQuantidade(demanda.quantidade()) + ".");
+            }
+
+            estoque.setQuantidade(estoque.getQuantidade() - demanda.quantidade());
             estoqueRepository.save(estoque);
         });
     }
@@ -212,30 +304,52 @@ public class PedidoService {
 
         UUID proprietarioId = pedido.getProprietarioRecebedor().getId();
 
-        quantidadePorProduto(pedido).forEach((produtoId, quantidadeDevolvida) ->
+        quantidadePorProduto(pedido).forEach((produtoId, demanda) ->
                 estoqueRepository
                         .findParaAtualizacao(proprietarioId, produtoId)
                         .ifPresent(estoque -> {
-                            estoque.setQuantidade(estoque.getQuantidade() + quantidadeDevolvida);
+                            estoque.setQuantidade(estoque.getQuantidade() + demanda.quantidade());
                             estoqueRepository.save(estoque);
                         }));
     }
 
-    /**
-     * Agrupa por produto: o mesmo produto pode aparecer em mais de um item, e
-     * validar item a item deixaria passar um pedido cuja soma estoura o estoque.
-     * LinkedHashMap mantem a ordem dos itens, o que torna as mensagens de erro
-     * previsiveis nos testes.
-     */
-    private Map<UUID, Double> quantidadePorProduto(Pedido pedido) {
+    /** Quanto de um produto o pedido movimenta, com o nome para as mensagens de erro. */
+    private record Demanda(String nome, double quantidade) {
 
-        Map<UUID, Double> total = new LinkedHashMap<>();
+        Demanda somar(Demanda outra) {
+            return new Demanda(nome, quantidade + outra.quantidade);
+        }
+    }
+
+    /**
+     * Agrupa por produto: pedidos antigos podem ter o mesmo produto em mais de
+     * um item, e validar item a item deixaria passar uma soma que estoura o
+     * estoque. O TreeMap trava as linhas de estoque sempre na mesma ordem
+     * (por id), o que evita deadlock entre dois pedidos com os mesmos produtos
+     * em ordens diferentes.
+     */
+    private Map<UUID, Demanda> quantidadePorProduto(Pedido pedido) {
+
+        Map<UUID, Demanda> total = new TreeMap<>();
 
         for (Itens item : pedido.getItens()) {
-            total.merge(item.getProduto().getId(), item.getQuantidade(), Double::sum);
+            Produto produto = item.getProduto();
+            total.merge(produto.getId(),
+                    new Demanda(produto.getNomePopular(), item.getQuantidade()),
+                    Demanda::somar);
         }
 
         return total;
+    }
+
+    // Todo pedido que ainda nao foi cancelado esta com o estoque reservado
+    private boolean reservouEstoque(Pedido pedido) {
+        return pedido.getStatus() != StatusPedido.CANCELADO;
+    }
+
+    // 10.0 -> "10", 2.50 -> "2.5": a mensagem vai direto para a tela
+    private static String formatarQuantidade(double quantidade) {
+        return BigDecimal.valueOf(quantidade).stripTrailingZeros().toPlainString();
     }
 
     private void validarTransicao(Pedido pedido, StatusPedido destino) {
@@ -250,26 +364,125 @@ public class PedidoService {
 
     // AUXILIARES
 
+    private boolean atendeFiltro(Pedido pedido, PedidoFiltroDTO filtro) {
+
+        return atendePeriodo(pedido, filtro)
+                && (filtro.tipoPedido() == null || pedido.getTipoPedido() == filtro.tipoPedido())
+                && (filtro.status() == null || pedido.getStatus() == filtro.status())
+                && (filtro.produtoId() == null || pedido.getItens().stream()
+                        .anyMatch(item -> filtro.produtoId().equals(item.getProduto().getId())));
+    }
+
+    private boolean atendePeriodo(Pedido pedido, PedidoFiltroDTO filtro) {
+
+        if (filtro.dataInicio() == null && filtro.dataFim() == null) {
+            return true;
+        }
+
+        LocalDate dia = pedido.getDataPedido().toLocalDate();
+
+        return (filtro.dataInicio() == null || !dia.isBefore(filtro.dataInicio()))
+                && (filtro.dataFim() == null || !dia.isAfter(filtro.dataFim()));
+    }
+
+    // O CopiaDoPedidoListener só envia depois do commit
+    private void publicarCopiaDoPedido(Pedido pedido) {
+        CopiaDoPedidoEmail.de(pedido).ifPresent(eventos::publishEvent);
+    }
+
+    private static TipoPedido tipoDoPedidoPublico(Estoque oferta, TipoPedido proposto) {
+
+        TipoPedido daOferta = TIPO_POR_DISPONIBILIDADE_PUBLICA.get(oferta.getDisponibilidade());
+
+        if (proposto == null || proposto == daOferta) {
+            return daOferta;
+        }
+        if (!oferta.isAceitaNegociacao()) {
+            throw new NegociacaoNaoPermitidaException(
+                    "O produtor não aceita negociar esta oferta: o pedido precisa ser de "
+                            + ROTULO_TIPO.get(daOferta) + ".");
+        }
+        return proposto;
+    }
+
+    private static final Map<TipoPedido, String> ROTULO_TIPO = Map.of(
+            TipoPedido.VENDA, "venda",
+            TipoPedido.TROCA, "troca",
+            TipoPedido.DOACAO, "doação");
+
+    private static String textoOuNulo(String valor) {
+        return valor == null || valor.isBlank() ? null : valor.trim();
+    }
+
+    private Comprador novoComprador(CompradorDTO dto) {
+        if (dto == null) {
+            return null;
+        }
+        return Comprador.builder()
+                .nome(dto.nome().trim())
+                .telefone(dto.telefone())
+                .email(textoOuNulo(dto.email()))
+                .build();
+    }
+
+    /**
+     * Um produto repetido na requisicao vira um unico item com as quantidades
+     * somadas, para que os itens gravados batam um a um com os produtos e com
+     * o que saiu do estoque. Precos diferentes para o mesmo produto nao tem
+     * como ser conciliados, entao a requisicao e recusada.
+     */
     private void preencherItens(Pedido pedido, List<ItemPedidoRequestDTO> itens) {
 
+        Map<UUID, Itens> porProduto = new LinkedHashMap<>();
+
         for (ItemPedidoRequestDTO itemDto : itens) {
+
+            Itens existente = porProduto.get(itemDto.produtoId());
+
+            if (existente != null) {
+                somarAoItem(existente, itemDto);
+                continue;
+            }
 
             Produto produto = produtoRepository.findById(itemDto.produtoId())
                     .orElseThrow(() -> new RecursoNaoEncontradoException(
                             "Produto não encontrado: " + itemDto.produtoId()));
 
-            Itens item = Itens.builder()
+            porProduto.put(itemDto.produtoId(), Itens.builder()
                     .produto(produto)
                     .quantidade(itemDto.quantidade())
                     .precoUnitario(itemDto.precoUnitario())
-                    .build();
+                    .build());
+        }
 
-            pedido.adicionarItem(item);
+        porProduto.values().forEach(pedido::adicionarItem);
+    }
+
+    private void somarAoItem(Itens item, ItemPedidoRequestDTO itemDto) {
+
+        Double preco = item.getPrecoUnitario();
+        Double novoPreco = itemDto.precoUnitario();
+
+        if (preco != null && novoPreco != null && Double.compare(preco, novoPreco) != 0) {
+            throw new IllegalArgumentException(
+                    "O produto " + item.getProduto().getNomePopular()
+                            + " foi informado mais de uma vez com preços diferentes.");
+        }
+
+        item.setQuantidade(item.getQuantidade() + itemDto.quantidade());
+        if (preco == null) {
+            item.setPrecoUnitario(novoPreco);
         }
     }
 
     private Pedido buscarEntidadeComItens(UUID id) {
         return pedidoRepository.findByIdComItens(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Pedido não encontrado: " + id));
+    }
+
+    private Pedido buscarParaAtualizacao(UUID id) {
+        return pedidoRepository.findParaAtualizacao(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Pedido não encontrado: " + id));
     }
@@ -295,10 +508,18 @@ public class PedidoService {
                 pedido.getMensagemOpcional(),
                 pedido.getDataPedido(),
                 pedido.getStatus(),
-                pedido.getUsuarioSolicitante().getId(),
+                pedido.getUsuarioSolicitante() != null ? pedido.getUsuarioSolicitante().getId() : null,
                 pedido.getProprietarioRecebedor().getId(),
-                pedido.getItens().stream().map(this::mapToItemResponse).toList()
+                pedido.getItens().stream().map(this::mapToItemResponse).toList(),
+                mapToCompradorResponse(pedido.getComprador())
         );
+    }
+
+    private CompradorDTO mapToCompradorResponse(Comprador comprador) {
+        if (comprador == null) {
+            return null;
+        }
+        return new CompradorDTO(comprador.getNome(), comprador.getTelefone(), comprador.getEmail());
     }
 
     private ItemPedidoResponseDTO mapToItemResponse(Itens item) {
@@ -306,6 +527,7 @@ public class PedidoService {
         return new ItemPedidoResponseDTO(
                 item.getId(),
                 item.getProduto().getId(),
+                item.getProduto().getNomePopular(),
                 item.getQuantidade(),
                 item.getPrecoUnitario()
         );

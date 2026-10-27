@@ -3,7 +3,14 @@ package com.sementelivre.backend.integration;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,13 +19,16 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sementelivre.backend.BackendApplication;
+import com.sementelivre.backend.dto.CompradorDTO;
+import com.sementelivre.backend.dto.PedidoRequestDTO;
 import com.sementelivre.backend.dto.PedidoResponseDTO;
 import com.sementelivre.backend.entity.Estoque;
+import com.sementelivre.backend.entity.Notificacao;
 import com.sementelivre.backend.entity.Pedido;
 import com.sementelivre.backend.entity.enums.StatusPedido;
-import com.sementelivre.backend.entity.repository.EstoqueRepository;
-import com.sementelivre.backend.entity.repository.PedidoRepository;
-import com.sementelivre.backend.entity.repository.ProdutoRepository;
+import com.sementelivre.backend.repository.EstoqueRepository;
+import com.sementelivre.backend.repository.PedidoRepository;
+import com.sementelivre.backend.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.EstoqueInsuficienteException;
 import com.sementelivre.backend.exception.TransicaoStatusInvalidaException;
 import com.sementelivre.backend.repository.NotificacaoRepository;
@@ -116,6 +126,45 @@ class PedidoEstoqueIntegrationTest extends AbstractPostgresIntegrationTest {
         assertEquals(ESTOQUE_INICIAL, estoque(scenario).getQuantidade());
         assertEquals(StatusPedido.CANCELADO,
                 pedidoRepository.findById(criado.id()).orElseThrow().getStatus());
+        // O segundo cancelamento falhou antes de notificar
+        assertEquals(1, titulosDasNotificacoes(scenario).stream()
+                .filter("Pedido cancelado"::equals).count());
+    }
+
+    /**
+     * Sem transacao de teste: cada cancelamento roda na sua propria transacao,
+     * em threads separadas, como duas requisicoes chegando juntas. O lock no
+     * pedido faz a segunda esperar a primeira e enxergar o status CANCELADO.
+     */
+    @Test
+    void cancelamentosSimultaneos_devemRestaurarEstoqueUmaUnicaVez() throws Exception {
+        CrossDomainFixture.Scenario scenario = transactionTemplate.execute(status ->
+                CrossDomainFixture.create(entityManager, produtoRepository, estoqueService, ESTOQUE_INICIAL));
+        UUID pedidoId = pedidoService.criar(CrossDomainFixture.pedido(scenario, QUANTIDADE_PEDIDA)).id();
+
+        CountDownLatch largada = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Callable<Boolean> cancelar = () -> {
+                largada.await();
+                try {
+                    pedidoService.cancelar(pedidoId);
+                    return true;
+                } catch (TransicaoStatusInvalidaException e) {
+                    return false;
+                }
+            };
+            Future<Boolean> primeiro = executor.submit(cancelar);
+            Future<Boolean> segundo = executor.submit(cancelar);
+            largada.countDown();
+
+            assertEquals(1, Stream.of(primeiro.get(), segundo.get()).filter(Boolean::booleanValue).count());
+            assertEquals(ESTOQUE_INICIAL, estoque(scenario).getQuantidade());
+        } finally {
+            executor.shutdownNow();
+            // Os demais testes contam pedidos; nao deixa este para tras
+            transactionTemplate.executeWithoutResult(status -> pedidoRepository.deleteById(pedidoId));
+        }
     }
 
     @Test
@@ -144,6 +193,7 @@ class PedidoEstoqueIntegrationTest extends AbstractPostgresIntegrationTest {
 
         assertEquals(ESTOQUE_INICIAL, estoque(scenario).getQuantidade());
         assertEquals(0, pedidoRepository.count());
+        assertEquals(List.of(), titulosDasNotificacoes(scenario));
     }
 
     @Test
@@ -164,8 +214,29 @@ class PedidoEstoqueIntegrationTest extends AbstractPostgresIntegrationTest {
         entityManager.clear();
         assertEquals(StatusPedido.PENDENTE, pedidoRepository.findById(pedidoId).orElseThrow().getStatus());
         assertEquals(ESTOQUE_INICIAL - QUANTIDADE_PEDIDA, estoque(scenario).getQuantidade());
-        assertEquals(0, notificacaoRepository
-            .findByProprietarioIdOrderByDataGeracaoDesc(scenario.proprietario().getId()).size());
+        // So sobra a notificacao do registro; a da confirmacao foi junto no rollback
+        assertEquals(List.of("Novo pedido recebido"), titulosDasNotificacoes(scenario));
+    }
+
+    @Test
+    @Transactional
+    void registrarPedidoComComprador_devePersistirCompradorEDevolverNaBusca() {
+        CrossDomainFixture.Scenario scenario = fixture(ESTOQUE_INICIAL);
+        PedidoRequestDTO base = CrossDomainFixture.pedido(scenario, QUANTIDADE_PEDIDA);
+        PedidoRequestDTO comComprador = new PedidoRequestDTO(
+                base.tipoPedido(), base.mensagemOpcional(), base.usuarioSolicitanteId(),
+                base.proprietarioRecebedorId(), base.itens(),
+                new CompradorDTO("Associação de Agricultores", "32999990000"));
+
+        PedidoResponseDTO criado = pedidoService.criar(comComprador);
+        entityManager.flush();
+        entityManager.clear();
+
+        PedidoResponseDTO buscado = pedidoService.buscarPorId(criado.id());
+
+        assertEquals("Associação de Agricultores", buscado.comprador().nome());
+        assertEquals("32999990000", buscado.comprador().telefone());
+        assertEquals(scenario.produto().getNomePopular(), buscado.itens().get(0).nomeProduto());
     }
 
     private static final class TestRollbackException extends RuntimeException {
@@ -180,5 +251,13 @@ class PedidoEstoqueIntegrationTest extends AbstractPostgresIntegrationTest {
         return estoqueRepository
                 .findByProprietarioIdAndProdutoId(scenario.proprietario().getId(), scenario.produto().getId())
                 .orElseThrow();
+    }
+
+    private List<String> titulosDasNotificacoes(CrossDomainFixture.Scenario scenario) {
+        return notificacaoRepository
+                .findByProprietarioIdOrderByDataGeracaoDesc(scenario.proprietario().getId())
+                .stream()
+                .map(Notificacao::getTitulo)
+                .toList();
     }
 }

@@ -1,3 +1,5 @@
+import { EspecieGeral, TipoProduto, FormatoProduto } from './seed';
+
 export enum Pesagem {
   SACA = 'SACA',
   KG = 'KG',
@@ -30,6 +32,16 @@ export const DisponibilidadeLabels: Record<DisponibilidadeProduto, string> = {
   [DisponibilidadeProduto.INDISPONIVEL]: 'Indisponível',
 };
 
+/**
+ * Tipo de pedido de cada disponibilidade que vai para o site. Só nelas faz
+ * sentido escolher se o comprador pode propor outro tipo (negociar).
+ */
+export const TipoNegociavelLabels: Partial<Record<DisponibilidadeProduto, string>> = {
+  [DisponibilidadeProduto.PARA_VENDA]: 'venda',
+  [DisponibilidadeProduto.PARA_TROCA]: 'troca',
+  [DisponibilidadeProduto.PARA_DOACAO]: 'doação',
+};
+
 export enum TipoMovimentacao {
   ENTRADA = 'ENTRADA',
   SAIDA_VENDA = 'SAIDA_VENDA',
@@ -60,9 +72,20 @@ export interface Estoque {
   quantidade: number;
   tipoPesagem: Pesagem;
   disponibilidade: DisponibilidadeProduto;
+  /** false: no site o comprador só pode pedir o tipo da disponibilidade. Ausente = aceita. */
+  aceitaNegociacao?: boolean;
   tipo: TipoMovimentacao;
   dataMovimentacao: Date;
   dataUltimaAtualizacaoEstoque: Date;
+  // Campos do /produtos que acompanha este estoque. O formulário de cadastro já
+  // os coletava, mas createSeed os descartava porque o tipo não os carregava —
+  // e o backend exige `especie` e `formato`.
+  // `tipo` acima é o TipoMovimentacao; o tipo do produto vem em `tipoProduto`.
+  tipoProduto?: TipoProduto;
+  especie?: EspecieGeral;
+  formato?: FormatoProduto;
+  nomeCientifico?: string;
+  historico?: string;
 }
 
 export interface MovimentacaoEstoque {
@@ -75,3 +98,23 @@ export interface MovimentacaoEstoque {
   motivo?: string;
   dataMovimentacao: Date;
 }
+
+/**
+ * De onde veio a movimentação. O backend grava isso para o relatório de
+ * auditoria separar o que o produtor fez na mão do que o sistema gerou.
+ */
+export enum OrigemMovimentacao {
+  CADASTRO = 'CADASTRO',
+  AJUSTE_MANUAL = 'AJUSTE_MANUAL',
+  PEDIDO = 'PEDIDO',
+  DEVOLUCAO = 'DEVOLUCAO',
+  EXCLUSAO_PRODUTO = 'EXCLUSAO_PRODUTO',
+}
+
+export const OrigemMovimentacaoLabels: Record<OrigemMovimentacao, string> = {
+  [OrigemMovimentacao.CADASTRO]: 'Cadastro do estoque',
+  [OrigemMovimentacao.AJUSTE_MANUAL]: 'Ajuste manual',
+  [OrigemMovimentacao.PEDIDO]: 'Pedido',
+  [OrigemMovimentacao.DEVOLUCAO]: 'Devolução',
+  [OrigemMovimentacao.EXCLUSAO_PRODUTO]: 'Exclusão do produto',
+};

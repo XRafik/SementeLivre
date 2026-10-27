@@ -5,12 +5,13 @@ import com.sementelivre.backend.exception.DocumentoJaCadastradoException;
 import com.sementelivre.backend.exception.EmailJaCadastradoException;
 import com.sementelivre.backend.exception.RgJaCadastradoException;
 import com.sementelivre.backend.entity.Logradouro;
+import com.sementelivre.backend.entity.Pessoa;
 import com.sementelivre.backend.entity.Proprietario;
 import com.sementelivre.backend.entity.enums.PerfilEnum;
 import com.sementelivre.backend.repository.LogradouroRepository;
 import com.sementelivre.backend.repository.PessoaRepository;
 import com.sementelivre.backend.repository.ProprietarioRepository;
-import com.sementelivre.backend.validation.DocumentoValidator;
+import com.sementelivre.backend.util.DocumentoValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +35,7 @@ public class ProprietarioService {
     public Proprietario criar(ProprietarioCreateRequestDTO dto) {
         DocumentoValidator.validar(dto.getTipoDocumento(), dto.getDocumento());
 
-        if (pessoaRepository.existsByEmail(dto.getEmail())) {
+        if (pessoaRepository.existsByEmailIgnoreCase(Pessoa.normalizarEmail(dto.getEmail()))) {
             throw new EmailJaCadastradoException("E-mail já cadastrado no sistema.");
         }
 

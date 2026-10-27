@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -15,14 +17,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.sementelivre.backend.dto.ContagemNaoLidasDTO;
 import com.sementelivre.backend.dto.NotificacaoRequestDTO;
 import com.sementelivre.backend.dto.NotificacaoResponseDTO;
 import com.sementelivre.backend.service.NotificacaoService;
-
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/notificacoes")
+@Tag(name = "Notificações", description = "Notificações geradas pelos pedidos (CDU-26).")
 public class NotificacaoController {
 
     private final NotificacaoService notificacaoService;
@@ -41,12 +44,27 @@ public class NotificacaoController {
         );
     }
 
-    // READ - todos
+    // READ - as do usuario logado (mais recentes primeiro).
+    // O antigo ?proprietarioId= foi removido: deixava ler as de outra pessoa.
     @GetMapping
     public ResponseEntity<List<NotificacaoResponseDTO>> listar() {
 
         return ResponseEntity.ok(
                 notificacaoService.listar()
+        );
+    }
+
+    /**
+     * Quantidade de não lidas, para o badge do cabeçalho.
+     *
+     * Contar no banco em vez de baixar a lista inteira evita tráfego desnecessário
+     * a cada navegação.
+     */
+    @GetMapping("/nao-lidas/contagem")
+    public ResponseEntity<ContagemNaoLidasDTO> contarNaoLidas() {
+
+        return ResponseEntity.ok(
+                new ContagemNaoLidasDTO(notificacaoService.contarNaoLidas())
         );
     }
 
@@ -78,6 +96,16 @@ public class NotificacaoController {
 
         return ResponseEntity.ok(
                 notificacaoService.marcarComoLida(id)
+        );
+    }
+
+    // UPDATE - marcar como nao lida
+    @PatchMapping("/{id}/nao-lida")
+    public ResponseEntity<NotificacaoResponseDTO> marcarComoNaoLida(
+            @PathVariable UUID id) {
+
+        return ResponseEntity.ok(
+                notificacaoService.marcarComoNaoLida(id)
         );
     }
 

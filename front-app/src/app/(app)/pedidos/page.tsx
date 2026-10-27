@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, Search, Plus, ChevronRight } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
-import { StatusPedido, StatusPedidoLabels, TipoPedidoLabels } from '@/types/order';
+import { useOrderStock } from '@/hooks/useOrderStock';
+import { FiltroPedidos, StatusPedido, StatusPedidoLabels, TipoPedido, TipoPedidoLabels } from '@/types/order';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import styles from './pedidos.module.css';
 
@@ -16,22 +18,49 @@ const statusFilters = [
   ...Object.entries(StatusPedidoLabels).map(([v, l]) => ({ value: v, label: l })),
 ];
 
+const tipoOptions = Object.entries(TipoPedidoLabels).map(([value, label]) => ({ value, label }));
+
 export default function PedidosPage() {
-  const { orders, loading } = useOrders();
   const router = useRouter();
   const [filtroStatus, setFiltroStatus] = useState('TODOS');
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroSemente, setFiltroSemente] = useState('');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
   const [busca, setBusca] = useState('');
 
-  const filtered = useMemo(() =>
-    orders.filter((o) => {
-      const matchStatus = filtroStatus === 'TODOS' || o.status === filtroStatus;
-      const matchBusca = busca === '' || 
-        o.idPedido.toLowerCase().includes(busca.toLowerCase()) || 
-        o.nomeRecebedor.toLowerCase().includes(busca.toLowerCase());
-      return matchStatus && matchBusca;
-    }),
-    [orders, filtroStatus, busca]
-  );
+  // Periodo, tipo, semente e status sao filtrados pelo backend (historico);
+  // a busca por texto continua local sobre o resultado.
+  const filtro: FiltroPedidos = {
+    status: filtroStatus === 'TODOS' ? undefined : filtroStatus as StatusPedido,
+    tipoPedido: (filtroTipo || undefined) as TipoPedido | undefined,
+    produtoId: filtroSemente || undefined,
+    dataInicio: dataInicio || undefined,
+    dataFim: dataFim || undefined,
+  };
+  const { orders, loading, error } = useOrders(filtro);
+  const { stock } = useOrderStock();
+
+  const sementeOptions = stock.map((s) => ({ value: s.idProduto, label: s.nomePopular }));
+  const temFiltro = filtroStatus !== 'TODOS' || !!filtroTipo || !!filtroSemente || !!dataInicio || !!dataFim;
+  const periodoInvalido = !!dataInicio && !!dataFim && dataInicio > dataFim;
+
+  const filtered = useMemo(() => {
+    const termo = busca.toLowerCase();
+    return orders.filter((o) =>
+      termo === '' ||
+      o.idPedido.toLowerCase().includes(termo) ||
+      o.nomeRecebedor.toLowerCase().includes(termo)
+    );
+  }, [orders, busca]);
+
+  const limparFiltros = () => {
+    setFiltroStatus('TODOS');
+    setFiltroTipo('');
+    setFiltroSemente('');
+    setDataInicio('');
+    setDataFim('');
+  };
 
   return (
     <div className={styles.page}>
@@ -59,14 +88,25 @@ export default function PedidosPage() {
             </button>
           ))}
         </div>
+        <div className={styles.historyFilters}>
+          <Select label="Tipo" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} options={[{ value: '', label: 'Todos' }, ...tipoOptions]} />
+          <Select label="Semente" value={filtroSemente} onChange={(e) => setFiltroSemente(e.target.value)} options={[{ value: '', label: 'Todas' }, ...sementeOptions]} />
+          <Input label="De" type="date" value={dataInicio} max={dataFim || undefined} onChange={(e) => setDataInicio(e.target.value)} />
+          <Input label="Até" type="date" value={dataFim} min={dataInicio || undefined} onChange={(e) => setDataFim(e.target.value)} error={periodoInvalido ? 'Data final antes da inicial' : undefined} />
+        </div>
+        {temFiltro && (
+          <button type="button" className={styles.clearFilters} onClick={limparFiltros}>Limpar filtros</button>
+        )}
       </div>
 
-      {loading ? (
+      {error ? (
+        <EmptyState icon={<ShoppingCart size={38} strokeWidth={1.5} />} title="Não foi possível carregar os pedidos" description={error} />
+      ) : loading ? (
         <div className={styles.list}>
           {[1, 2, 3].map((i) => <div key={i} className={`skeleton ${styles.skeletonCard}`} />)}
         </div>
       ) : filtered.length === 0 ? (
-        orders.length === 0 ? (
+        orders.length === 0 && !temFiltro ? (
           <EmptyState
             icon={<ShoppingCart size={38} strokeWidth={1.5} />}
             title="Nenhum pedido registrado"
@@ -75,7 +115,7 @@ export default function PedidosPage() {
             onAction={() => router.push('/pedidos/novo')}
           />
         ) : (
-          <EmptyState icon={<Search size={34} strokeWidth={1.5} />} title="Nenhum pedido com esse status." />
+          <EmptyState icon={<Search size={34} strokeWidth={1.5} />} title="Nenhum pedido encontrado com esses filtros." />
         )
       ) : (
         <ul className={styles.list}>

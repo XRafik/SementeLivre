@@ -61,13 +61,20 @@ public class Pedido {
     @Column(nullable = false, length = 12)
     private StatusPedido status = StatusPedido.PENDENTE;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "usuario_solicitante_id", nullable = false)
+    // Nulo nos pedidos feitos pelo site público: quem pede não tem conta (V10)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_solicitante_id")
     private Usuario usuarioSolicitante;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "proprietario_recebedor_id", nullable = false)
     private Proprietario proprietarioRecebedor;
+
+    // Opcional: pedidos anteriores a V6 nao tem comprador. O comprador nasce
+    // junto com o pedido, por isso o PERSIST em cascata.
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @JoinColumn(name = "comprador_id")
+    private Comprador comprador;
 
     // Composicao: os itens nao existem fora do pedido (cascade + orphanRemoval)
     @Builder.Default

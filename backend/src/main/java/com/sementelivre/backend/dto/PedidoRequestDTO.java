@@ -16,7 +16,7 @@ public record PedidoRequestDTO(
 
         String mensagemOpcional,
 
-        @NotNull(message = "Usuário solicitante é obrigatório")
+        // Opcional no corpo: quando ausente, o controller usa o usuario do token
         UUID usuarioSolicitanteId,
 
         @NotNull(message = "Proprietário recebedor é obrigatório")
@@ -24,7 +24,15 @@ public record PedidoRequestDTO(
 
         @Valid
         @NotEmpty(message = "O pedido deve ter ao menos um item")
-        List<ItemPedidoRequestDTO> itens
+        List<ItemPedidoRequestDTO> itens,
+
+        @Valid
+        CompradorDTO comprador
 
 ) {
+
+    public PedidoRequestDTO comUsuarioSolicitante(UUID usuarioId) {
+        return new PedidoRequestDTO(tipoPedido, mensagemOpcional, usuarioId,
+                proprietarioRecebedorId, itens, comprador);
+    }
 }

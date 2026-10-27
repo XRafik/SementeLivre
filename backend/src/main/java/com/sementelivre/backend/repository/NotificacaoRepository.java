@@ -3,6 +3,9 @@ package com.sementelivre.backend.repository;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.sementelivre.backend.entity.Notificacao;
@@ -47,4 +50,11 @@ public interface NotificacaoRepository extends BaseRepository<Notificacao, UUID>
      * inteira só para chamar {@code size()}.
      */
     long countByProprietarioIdAndLidaFalse(UUID proprietarioId);
+
+    long countByProprietarioId(UUID proprietarioId);
+
+    /** Remove as notificações do proprietário na exclusão da conta (LGPD). */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from Notificacao n where n.proprietario.id = :proprietarioId")
+    void deleteAllByProprietarioId(@Param("proprietarioId") UUID proprietarioId);
 }

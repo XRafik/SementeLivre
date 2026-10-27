@@ -1,0 +1,96 @@
+.page { display: flex; flex-direction: column; gap: var(--space-4); animation: slideUp 0.25s ease; }
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.back:hover { color: var(--color-primary); }
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.headerIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: var(--color-primary-light);
+  border-radius: var(--radius-lg);
+  color: var(--color-primary-dark);
+  flex-shrink: 0;
+}
+
+.headerContent { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.headerTitle { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text); }
+.headerSubtitle { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+
+.section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin-bottom: var(--space-3);
+}
+
+.detailList { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.detailRow:hover { background: var(--color-surface-2); }
+
+.detailIcon { color: var(--color-primary); flex-shrink: 0; }
+
+.detailLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  min-width: 110px;
+}
+
+.detailValue {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-left: auto;
+  text-align: right;
+}
+
+.hint {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

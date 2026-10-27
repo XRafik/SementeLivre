@@ -200,3 +200,20 @@
   height: 88px;
   border-radius: var(--radius-xl);
 }
+
+.historyFilters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.clearFilters {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}

@@ -21,6 +21,7 @@ import { useToast } from '@/components/feedback/Toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AnimatedPlantSVG } from '@/components/icons/AnimatedPlantSVG';
+import { InstitutionalLogo } from '@/components/shared/InstitutionalLogo';
 import {
   CadastroProprietarioForm, cadastroProprietarioSchema, fetchCEP, formatCEP, formatCPF, formatTelefone,
   paraPessoaRequest,
@@ -154,6 +155,8 @@ export default function CadastrarPage() {
         <p className={styles.registerLink}>
           Já tem conta? <Link href="/entrar">Entrar</Link>
         </p>
+
+        <InstitutionalLogo />
       </div>
     </div>
   );

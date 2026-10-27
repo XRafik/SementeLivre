@@ -59,6 +59,18 @@
 			<optional>true</optional>
 		</dependency>
 
+		<!-- Geracao de relatorios em PDF e CSV (issue #95) -->
+		<dependency>
+			<groupId>com.github.librepdf</groupId>
+			<artifactId>openpdf</artifactId>
+			<version>1.3.39</version>
+		</dependency>
+		<dependency>
+			<groupId>com.opencsv</groupId>
+			<artifactId>opencsv</artifactId>
+			<version>5.9</version>
+		</dependency>
+
 		<!-- Security & JWT (JJWT) & Mail -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

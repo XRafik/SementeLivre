@@ -6,12 +6,25 @@
  *  - Tentar renovar o accessToken via /auth/refresh quando receber 401.
  *  - Persistir / limpar tokens no localStorage de forma padronizada.
  *  - Avisar por toast quando não há conexão ou quando a sessão expira.
- *  - Exportar helpers tipados: apiGet, apiPost, apiPut, apiDelete.
+ *  - Exportar helpers tipados: apiGet, apiPost, apiPut, apiPatch, apiDelete.
  */
 
 import { emitirToast } from './toast';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+
+export { BASE_URL };
+
+/**
+ * Converte um caminho relativo devolvido pelo backend em URL absoluta.
+ * O /produtos/upload-foto responde "/uploads/produtos/abc.png"; gravamos esse
+ * caminho relativo no banco (para não amarrar a origem) e resolvemos na leitura.
+ */
+export function apiUrl(caminho: string | null | undefined): string {
+  if (!caminho) return '';
+  if (/^https?:\/\//i.test(caminho) || caminho.startsWith('data:')) return caminho;
+  return `${BASE_URL}${caminho.startsWith('/') ? '' : '/'}${caminho}`;
+}
 
 // ── Chaves de armazenamento ────────────────────────────────────────────────────
 
@@ -211,6 +224,84 @@ export function apiPut<T>(path: string, body?: unknown, options?: RequestOptions
   return request<T>(path, { ...options, method: 'PUT', body });
 }
 
+export function apiPatch<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+  return request<T>(path, { ...options, method: 'PATCH', body });
+}
+
 export function apiDelete<T>(path: string, options?: RequestOptions): Promise<T> {
   return request<T>(path, { ...options, method: 'DELETE' });
+}
+
+/**
+ * Envia FormData (multipart) com o accessToken e renova o token em caso de 401.
+ * Não define Content-Type: o próprio browser acrescenta o boundary do multipart.
+ */
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const doFetch = (token: string | null, dados: FormData) =>
+    fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: dados,
+    }).catch(() => {
+      emitirToast(MENSAGEM_SEM_CONEXAO, 'error');
+      throw buildApiError(0, { message: MENSAGEM_SEM_CONEXAO, code: 'network/offline' });
+    });
+
+  let res = await doFetch(getAccessToken(), formData);
+
+  if (res.status === 401) {
+    const newToken = await silentRefresh();
+    if (!newToken) {
+      clearTokens();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('sl:session-expired'));
+      }
+      emitirToast(MENSAGEM_SESSAO_EXPIRADA, 'warning');
+      throw buildApiError(401, { message: MENSAGEM_SESSAO_EXPIRADA, code: 'auth/session-expired' });
+    }
+    // O FormData só pode ser lido uma vez: recria os campos para o reenvio.
+    const reenvio = new FormData();
+    formData.forEach((valor, chave) => reenvio.append(chave, valor));
+    res = await doFetch(newToken, reenvio);
+  }
+
+  if (!res.ok) {
+    const texto = await res.text();
+    let body: unknown = texto;
+    try {
+      body = JSON.parse(texto);
+    } catch {
+      // resposta não-JSON
+    }
+    throw buildApiError(res.status, body);
+  }
+
+  if (res.status === 204) return undefined as unknown as T;
+
+  // O /produtos/upload-foto devolve uma String crua (text/plain), não JSON.
+  // Tentamos o parse e, se não for JSON, devolvemos o texto como está.
+  const texto = (await res.text()).trim();
+  if (!texto) return undefined as unknown as T;
+  try {
+    return JSON.parse(texto) as T;
+  } catch {
+    return texto as unknown as T;
+  }
+}
+
+/** Anexa os parâmetros preenchidos à rota: comQuery('/pedidos', { status: 'PENDENTE', tipo: undefined }). */
+export function comQuery(path: string, query: Record<string, string | number | null | undefined>): string {
+  const params = new URLSearchParams();
+  Object.entries(query).forEach(([chave, valor]) => {
+    if (valor !== undefined && valor !== null && valor !== '') params.set(chave, String(valor));
+  });
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
+/** Mensagem para a tela: a do backend quando houver, senão o texto padrão. */
+export function errorMessage(err: unknown, fallback: string): string {
+  if (isApiError(err) && err.message) return err.message;
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
 }

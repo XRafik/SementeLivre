@@ -1,18 +1,24 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 import com.sementelivre.backend.dto.ComunidadeRequestDTO;
 import com.sementelivre.backend.dto.ComunidadeResponseDTO;
 import com.sementelivre.backend.service.ComunidadeService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
+// Proprietário só solicita comunidade (POST, nasce PENDENTE_APROVACAO) e consulta;
+// editar, excluir, aprovar e rejeitar são do admin.
 @RestController
 @RequestMapping("/api/comunidades")
+@Tag(name = "Comunidades", description = "Solicitação de comunidade pelo proprietário; aprovação, rejeição e edição pelo admin.")
 public class ComunidadeController {
 
     private final ComunidadeService comunidadeService;
@@ -53,6 +59,7 @@ public class ComunidadeController {
 
     // UPDATE
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ComunidadeResponseDTO> atualizar(
             @PathVariable UUID id,
             @Valid @RequestBody ComunidadeRequestDTO comunidade){
@@ -63,6 +70,7 @@ public class ComunidadeController {
 
     // DELETE
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deletar(
             @PathVariable UUID id){
         comunidadeService.deletar(id);
@@ -73,6 +81,7 @@ public class ComunidadeController {
 
     // APPROVED
     @PatchMapping("/{id}/aprovar")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ComunidadeResponseDTO> aprovar(
             @PathVariable UUID id){
 
@@ -83,6 +92,7 @@ public class ComunidadeController {
 
     // REJECTED
     @PatchMapping("/{id}/rejeitar")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ComunidadeResponseDTO> rejeitar(
             @PathVariable UUID id){
 

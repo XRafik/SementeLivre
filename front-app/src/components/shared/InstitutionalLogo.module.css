@@ -1,0 +1,43 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.start {
+  align-items: flex-start;
+  text-align: left;
+}
+
+/* Área livre de 1 módulo: o padding vem do componente, em px. */
+.area {
+  display: flex;
+}
+
+/* Base branca sólida para fundos coloridos, sem borda e sem sombra. */
+.card {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+}
+
+/*
+ * Proporção sempre a do arquivo e nenhum efeito na logo. O max-width: none impede que o
+ * img { max-width: 100% } global encolha o símbolo abaixo do mínimo.
+ */
+.logo {
+  display: block;
+  max-width: none;
+  object-fit: contain;
+  filter: none;
+  opacity: 1;
+  transform: none;
+  animation: none;
+  box-shadow: none;
+}
+
+.credit {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}

@@ -16,7 +16,8 @@ public record PedidoResponseDTO(
         StatusPedido status,
         UUID usuarioSolicitanteId,
         UUID proprietarioRecebedorId,
-        List<ItemPedidoResponseDTO> itens
+        List<ItemPedidoResponseDTO> itens,
+        CompradorDTO comprador
 
 ) {
 }

@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.sementelivre.backend.dto.*;
 import com.sementelivre.backend.entity.Usuario;
 import com.sementelivre.backend.service.AuthService;
@@ -13,6 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
+@Tag(name = "Autenticação", description = "Cadastro de proprietário, login, refresh do token, recuperação e troca de senha, perfil da conta logada.")
 public class AuthController {
 
     private final AuthService authService;

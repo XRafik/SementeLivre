@@ -3,11 +3,13 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOrders } from '@/hooks/useOrders';
-import { useSeeds } from '@/hooks/useSeeds';
+import { EstoqueParaPedido, useOrderStock } from '@/hooks/useOrderStock';
 import { useAuth } from '@/context/AuthContext';
+import { useNotifications } from '@/context/NotificationContext';
 import { useToast } from '@/components/feedback/Toast';
+import { errorMessage } from '@/lib/api';
 import { TipoPedido } from '@/types/order';
-import { Estoque, DisponibilidadeProduto } from '@/types/stock';
+import { DisponibilidadeProduto, PesagemLabels } from '@/types/stock';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Toggle } from '@/components/ui/toggle';
@@ -16,7 +18,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import styles from './novoPedido.module.css';
 
-interface ItemForm { seed: Estoque; quantidade: number; }
+interface ItemForm { seed: EstoqueParaPedido; quantidade: number; }
 
 const tipoOptions = [
   { value: TipoPedido.VENDA, label: 'Venda' },
@@ -27,7 +29,8 @@ const tipoOptions = [
 export default function NovoPedidoPage() {
   const { user } = useAuth();
   const { createOrder } = useOrders();
-  const { seeds } = useSeeds();
+  const { refresh: refreshNotifications } = useNotifications();
+  const { stock, loading: loadingStock, error: stockError, reload: reloadStock } = useOrderStock();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -38,11 +41,11 @@ export default function NovoPedidoPage() {
   const [itens, setItens] = useState<ItemForm[]>([]);
   const [showSeedPicker, setShowSeedPicker] = useState(false);
   const [pickQty, setPickQty] = useState('');
-  const [selectedSeed, setSelectedSeed] = useState<Estoque | null>(null);
+  const [selectedSeed, setSelectedSeed] = useState<EstoqueParaPedido | null>(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const availableSeeds = seeds.filter(s => s.disponibilidade !== DisponibilidadeProduto.INDISPONIVEL);
+  const availableSeeds = stock.filter(s => s.disponibilidade !== DisponibilidadeProduto.INDISPONIVEL && s.quantidade > 0);
   const total = itens.reduce((sum, i) => sum + (i.seed.preco || 0) * i.quantidade, 0);
 
   const addItem = () => {
@@ -65,30 +68,30 @@ export default function NovoPedidoPage() {
     if (itens.length === 0) e2.itens = 'Adicione ao menos um item';
     setErrors(e2);
     if (Object.keys(e2).length > 0) return;
-    if (!user) return;
+    if (!user) { showToast('Perfil de proprietário não encontrado.', 'error'); return; }
     setLoading(true);
     try {
-      await createOrder({
-        idProprietario: user.uid,
+      const id = await createOrder({
         tipoPedido: tipo,
-        status: 'PENDENTE' as any,
         nomeRecebedor,
         contatoRecebedor: contato,
         mensagemOpcional: mensagem,
-        dataPedido: new Date(),
         itens: itens.map(i => ({
-          idItem: i.seed.idEstoque,
           idProduto: i.seed.idProduto,
-          nomePopular: i.seed.nomePopular,
           quantidade: i.quantidade,
-          tipoPesagem: i.seed.tipoPesagem,
-          precoUnitario: i.seed.preco,
+          // So venda tem preco; troca/doacao vao sem valor
+          precoUnitario: tipo === TipoPedido.VENDA ? i.seed.preco : undefined,
         })),
-        totalValor: tipo === TipoPedido.VENDA ? total : undefined,
       });
       showToast('Pedido registrado com sucesso!', 'success');
-      router.push('/pedidos');
-    } catch { showToast('Erro ao registrar pedido.', 'error'); }
+      // O registro gera a notificacao "Novo pedido recebido" no backend (CDU-26)
+      refreshNotifications();
+      router.push(`/pedidos/${id}`);
+    } catch (err) {
+      // Ex.: estoque insuficiente (422) quando outro pedido reservou antes
+      showToast(errorMessage(err, 'Erro ao registrar pedido.'), 'error');
+      reloadStock();
+    }
     finally { setLoading(false); }
   };
 
@@ -116,7 +119,7 @@ export default function NovoPedidoPage() {
             {itens.map((item) => (
               <li key={item.seed.idEstoque} className={styles.itemRow}>
                 <span className={styles.itemName}>{item.seed.nomePopular}</span>
-                <span className={styles.itemQty}>{item.quantidade} {item.seed.tipoPesagem}</span>
+                <span className={styles.itemQty}>{item.quantidade} {PesagemLabels[item.seed.tipoPesagem]}</span>
                 {tipo === TipoPedido.VENDA && item.seed.preco && (
                   <span className={styles.itemPrice}>R$ {(item.seed.preco * item.quantidade).toFixed(2)}</span>
                 )}
@@ -139,6 +142,11 @@ export default function NovoPedidoPage() {
       {/* Seed Picker Dialog */}
       <Dialog isOpen={showSeedPicker} onClose={() => { setShowSeedPicker(false); setSelectedSeed(null); setPickQty(''); }} title="Selecionar Semente">
         <div className={styles.seedList}>
+          {loadingStock && <p className={styles.seedStock}>Carregando estoque...</p>}
+          {stockError && <span className={styles.error} role="alert">⚠ {stockError}</span>}
+          {!loadingStock && !stockError && availableSeeds.length === 0 && (
+            <p className={styles.seedStock}>Nenhuma semente com estoque disponível.</p>
+          )}
           {availableSeeds.map((s) => (
             <button
               key={s.idEstoque}
@@ -147,14 +155,14 @@ export default function NovoPedidoPage() {
               onClick={() => setSelectedSeed(s)}
             >
               <span className={styles.seedName}>{s.nomePopular}</span>
-              <span className={styles.seedStock}>Estoque: {s.quantidade} {s.tipoPesagem}</span>
+              <span className={styles.seedStock}>Estoque: {s.quantidade} {PesagemLabels[s.tipoPesagem]}</span>
               <Badge variant="availability" value={s.disponibilidade} />
             </button>
           ))}
         </div>
         {selectedSeed && (
           <div className={styles.qtyRow}>
-            <Input label={`Quantidade (máx: ${selectedSeed.quantidade})`} value={pickQty} onChange={(e) => setPickQty(e.target.value)} type="number" inputMode="decimal" min="1" max={String(selectedSeed.quantidade)} />
+            <Input label={`Quantidade (máx: ${selectedSeed.quantidade})`} value={pickQty} onChange={(e) => setPickQty(e.target.value)} type="number" inputMode="decimal" min="0" max={String(selectedSeed.quantidade)} />
             <Button type="button" onClick={addItem} variant="primary">Adicionar</Button>
           </div>
         )}

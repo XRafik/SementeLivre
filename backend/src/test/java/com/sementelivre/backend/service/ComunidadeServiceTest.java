@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.sementelivre.backend.dto.ComunidadeRequestDTO;
+import com.sementelivre.backend.dto.LogradouroDTO;
 import com.sementelivre.backend.dto.ComunidadeResponseDTO;
 import com.sementelivre.backend.entity.Comunidade;
 import com.sementelivre.backend.entity.Logradouro;
@@ -79,6 +80,30 @@ class ComunidadeServiceTest {
 
         assertEquals("Vale Verde", resposta.nome());
         assertEquals(StatusComunidade.PENDENTE_APROVACAO, resposta.status());
+    }
+
+    @Test
+    void criarComEnderecoCriaOLogradouroDaComunidade() {
+        LogradouroDTO endereco = new LogradouroDTO();
+        endereco.setLogradouro("Córrego Fundo");
+        endereco.setMunicipio("Mercês");
+        endereco.setUf("MG");
+        when(logradouroRepository.save(any(Logradouro.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(comunidadeRepository.findAllNames()).thenReturn(List.of("Quilombo do Campinho"));
+        when(comunidadeRepository.save(any(Comunidade.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ComunidadeResponseDTO resposta = comunidadeService.criar(new ComunidadeRequestDTO("Vale Verde", null, endereco));
+
+        assertEquals("Mercês", resposta.logradouroMunicipio());
+        assertEquals(StatusComunidade.PENDENTE_APROVACAO, resposta.status());
+        verify(logradouroRepository, never()).findById(any());
+    }
+
+    @Test
+    void criarSemEnderecoNemLogradouroIdRecusa() {
+        assertThrows(IllegalArgumentException.class,
+                () -> comunidadeService.criar(new ComunidadeRequestDTO("Vale Verde", null)));
+        verify(comunidadeRepository, never()).save(any());
     }
 
     @Test

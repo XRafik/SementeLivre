@@ -1,5 +1,7 @@
 package com.sementelivre.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -20,6 +22,7 @@ import com.sementelivre.backend.service.CatalogoPublicoService;
 
 @RestController
 @RequestMapping("/catalogo/produtos")
+@Tag(name = "Catálogo público", description = "Produtos e ofertas exibidos no site público (sem login).")
 public class CatalogoPublicoController {
 
     private final CatalogoPublicoService catalogoPublicoService;

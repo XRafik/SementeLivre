@@ -1,7 +1,7 @@
 export interface Notificacao {
   idNotificacao: string;
   idProprietario: string;
-  idPedido: string;
+  idPedido?: string;
   titulo: string;
   mensagem: string;
   lida: boolean;

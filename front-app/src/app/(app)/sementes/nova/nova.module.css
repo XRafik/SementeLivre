@@ -133,3 +133,9 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4);
 }
+
+.hint {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

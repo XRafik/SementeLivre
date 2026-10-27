@@ -1,8 +1,29 @@
 spring:
   profiles:
     default: dev
+  # SMTP para os e-mails (recuperação de senha, cópia do pedido).
+  # Sem MAIL_USERNAME e MAIL_PASSWORD nenhum e-mail é enviado.
+  # Os valores ficam em backend/.env (ver backend/.env.example), fora do git.
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
 management:
+  # E-mail é opcional: SMTP fora do ar ou sem credencial não deixa a aplicação DOWN
+  health:
+    mail:
+      enabled: false
   endpoint:
     health:
       probes:
@@ -22,3 +43,14 @@ springdoc:
 app:
   cors:
     allowed-origins: []
+  mail:
+    # Remetente; vazio usa o MAIL_USERNAME
+    from: ${MAIL_FROM:}
+  # Pedido do site público (sem login): limites contra spam de pedidos e de e-mails.
+  # Acima do limite a API responde 429 com Retry-After.
+  pedido-publico:
+    limite:
+      por-email: ${PEDIDO_PUBLICO_LIMITE_POR_EMAIL:3}
+      janela-email: ${PEDIDO_PUBLICO_JANELA_EMAIL:1h}
+      por-ip: ${PEDIDO_PUBLICO_LIMITE_POR_IP:10}
+      janela-ip: ${PEDIDO_PUBLICO_JANELA_IP:10m}

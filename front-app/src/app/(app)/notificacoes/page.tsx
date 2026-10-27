@@ -20,12 +20,13 @@ function timeAgo(date: Date): string {
 }
 
 export default function NotificacoesPage() {
-  const { notifications, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, markAsRead, markAsUnread, markAllAsRead } = useNotifications();
   const router = useRouter();
 
-  const handleNotif = async (idNotificacao: string, idPedido: string, lida: boolean) => {
-    if (!lida) await markAsRead(idNotificacao);
-    router.push(`/pedidos/${idPedido}`);
+  const handleNotif = async (idNotificacao: string, idPedido: string | undefined, lida: boolean) => {
+    if (!lida) await markAsRead(idNotificacao).catch(() => {});
+    // Notificacao de pedido excluido perde o vinculo (pedidoRelacionadoId nulo)
+    if (idPedido) router.push(`/pedidos/${idPedido}`);
   };
 
   return (
@@ -61,6 +62,11 @@ export default function NotificacoesPage() {
                   <p className={styles.time}>{timeAgo(n.dataGeracao)}</p>
                 </div>
               </button>
+              {n.lida && (
+                <Button variant="text" size="sm" onClick={() => markAsUnread(n.idNotificacao).catch(() => {})}>
+                  Marcar como não lida
+                </Button>
+              )}
             </li>
           ))}
         </ul>

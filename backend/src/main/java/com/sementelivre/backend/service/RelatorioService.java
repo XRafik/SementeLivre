@@ -11,6 +11,7 @@ import com.sementelivre.backend.entity.Proprietario;
 import com.sementelivre.backend.entity.Relatorio;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 import com.sementelivre.backend.repository.RelatorioRepository;
+import com.sementelivre.backend.util.UsuarioLogado;
 
 import jakarta.persistence.EntityManager;
 
@@ -30,8 +31,14 @@ public class RelatorioService
     }
 
     // CREATE
+    //
+    // Cada um so registra relatorio no proprio nome.
     @Override
     public RelatorioResponseDTO criar(RelatorioRequestDTO dto) {
+
+        if (!dto.proprietarioId().equals(UsuarioLogado.id())) {
+            throw new RecursoNaoEncontradoException("Proprietário não encontrado: " + dto.proprietarioId());
+        }
 
         Relatorio relatorio = Relatorio.builder()
                 .tipo(dto.tipo())
@@ -48,29 +55,32 @@ public class RelatorioService
     // READ - por ID
     @Override
     public RelatorioResponseDTO buscarPorId(UUID id) {
-        Relatorio relatorio = buscarEntidadePorId(id);
+        Relatorio relatorio = buscarEntidadeDoDono(id);
 
         return toResponseDTO(relatorio);
     }
 
-    // READ - todos
+    // READ - historico do usuario logado, do mais recente para o mais antigo.
+    // Antes devolvia findAll(): qualquer pessoa logada via o historico de todos.
     @Override
     public List<RelatorioResponseDTO> listar() {
-        return relatorioRepository.findAll()
+        return relatorioRepository.findByProprietarioIdOrderByDataGeracaoDesc(UsuarioLogado.id())
                 .stream()
                 .map(this::toResponseDTO)
                 .toList();
     }
 
     // UPDATE
+    //
+    // O dono nao muda: trocar o proprietarioId permitiria passar o relatorio
+    // para outra pessoa, entao o campo e ignorado de proposito.
     @Override
     public RelatorioResponseDTO atualizar(UUID id, RelatorioRequestDTO dto) {
 
-        Relatorio relatorio = buscarEntidadePorId(id);
+        Relatorio relatorio = buscarEntidadeDoDono(id);
 
         relatorio.setTipo(dto.tipo());
         relatorio.setFiltrosUtilizados(dto.filtrosUtilizados());
-        relatorio.setProprietario(buscarProprietario(dto.proprietarioId()));
 
         Relatorio atualizado = relatorioRepository.save(relatorio);
 
@@ -80,16 +90,24 @@ public class RelatorioService
     // DELETE
     @Override
     public void deletar(UUID id) {
-        Relatorio relatorio = buscarEntidadePorId(id);
+        Relatorio relatorio = buscarEntidadeDoDono(id);
 
         relatorioRepository.delete(relatorio);
     }
 
-    private Relatorio buscarEntidadePorId(UUID id) {
-        return relatorioRepository.findById(id)
+    // Carrega o relatorio so se ele for do usuario logado. Devolve 404 (e nao
+    // 403), igual ao NotificacaoService, para nao confirmar que o id existe.
+    private Relatorio buscarEntidadeDoDono(UUID id) {
+        Relatorio relatorio = relatorioRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Relatório não encontrado: " + id
                 ));
+
+        if (!relatorio.getProprietario().getId().equals(UsuarioLogado.id())) {
+            throw new RecursoNaoEncontradoException("Relatório não encontrado: " + id);
+        }
+
+        return relatorio;
     }
 
     // Proprietario ainda nao tem repository (e placeholder),

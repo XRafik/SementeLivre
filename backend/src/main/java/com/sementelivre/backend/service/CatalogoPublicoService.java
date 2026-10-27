@@ -17,7 +17,7 @@ import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.enums.Disponibilidade;
 import com.sementelivre.backend.entity.enums.EspecieGeral;
 import com.sementelivre.backend.entity.enums.TipoProduto;
-import com.sementelivre.backend.entity.repository.EstoqueRepository;
+import com.sementelivre.backend.repository.EstoqueRepository;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 
 @Service
@@ -94,7 +94,8 @@ public class CatalogoPublicoService {
                         estoque.getPreco(),
                         estoque.getQuantidade(),
                         estoque.getTipoPesagem(),
-                        estoque.getDisponibilidade()
+                        estoque.getDisponibilidade(),
+                        estoque.isAceitaNegociacao()
                 ))
                 .toList();
 
@@ -162,7 +163,8 @@ public class CatalogoPublicoService {
                 comunidadeId,
                 nomeComunidade,
                 municipio,
-                uf
+                uf,
+                estoque.isAceitaNegociacao()
         );
     }
 

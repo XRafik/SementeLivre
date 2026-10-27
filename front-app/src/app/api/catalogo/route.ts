@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const backend = process.env.BACKEND_URL ?? 'http://localhost:8080';
+
 export async function GET(request: NextRequest) {
   try {
     const backendUrl = process.env.BACKEND_URL;
@@ -29,11 +31,29 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    return NextResponse.json(data);
+    // O backend guarda o caminho relativo da foto (/uploads/produtos/...).
+    // Sem prefixar a origem, o <img> resolve contra o Next (:3000), que não
+    // serve /uploads, e a imagem quebra com 404.
+    return NextResponse.json(comUrlDeFotoAbsoluta(data));
   } catch {
     return NextResponse.json(
       { error: 'Não foi possível conectar ao backend.' },
       { status: 502 }
     );
   }
+}
+
+function comUrlDeFotoAbsoluta(data: unknown): unknown {
+  if (Array.isArray(data)) return data.map(comUrlDeFotoAbsoluta);
+  if (data && typeof data === 'object') {
+    const registro = data as Record<string, unknown>;
+    const conteudo = registro.content;
+    if (Array.isArray(conteudo)) {
+      return { ...registro, content: conteudo.map(comUrlDeFotoAbsoluta) };
+    }
+    if (typeof registro.urlFoto === 'string' && registro.urlFoto.startsWith('/uploads/')) {
+      return { ...registro, urlFoto: `${backend}${registro.urlFoto}` };
+    }
+  }
+  return data;
 }
