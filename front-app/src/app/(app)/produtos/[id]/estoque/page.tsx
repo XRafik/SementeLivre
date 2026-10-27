@@ -93,8 +93,8 @@ export default function MovimentacoesEstoquePage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <Button variant="ghost" onClick={() => router.back()} className={styles.backBtn}>
-          <ArrowLeft size={20} />
+        <Button variant="ghost" onClick={() => router.back()} className={styles.backBtn} aria-label="Voltar">
+          <ArrowLeft size={20} aria-hidden="true" />
         </Button>
         <div className={styles.headerInfo}>
           <h1 className={styles.title}>Histórico de Estoque</h1>

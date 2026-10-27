@@ -149,7 +149,7 @@ export default function MarketplacePage() {
           <h2 className="text-2xl font-bold text-foreground mb-1">
             Produtos Disponíveis
           </h2>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-sm" role="status">
             {filtered.length} resultado{filtered.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -158,8 +158,10 @@ export default function MarketplacePage() {
         <div className="flex flex-col gap-3 mb-8">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
+                type="search"
+                aria-label="Buscar por nome popular"
                 placeholder="Buscar por nome popular..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -168,6 +170,7 @@ export default function MarketplacePage() {
             </div>
 
             <select
+              aria-label="Filtrar por comunidade"
               value={filterComunidade}
               onChange={(e) => setFilterComunidade(e.target.value)}
               className="rounded-md border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -182,7 +185,7 @@ export default function MarketplacePage() {
           </div>
 
           {/* Status pills */}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap" role="group" aria-label="Filtrar por disponibilidade">
             {(["all", ...Object.keys(DISPONIBILIDADE_CONFIG)] as FilterStatus[]).map((f) => {
               const label =
                 f === "all"
@@ -191,6 +194,8 @@ export default function MarketplacePage() {
               return (
                 <button
                   key={f}
+                  type="button"
+                  aria-pressed={filter === f}
                   onClick={() => setFilter(f)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                     filter === f
@@ -205,12 +210,14 @@ export default function MarketplacePage() {
           </div>
 
           {/* Tipo pills */}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap" role="group" aria-label="Filtrar por tipo">
             {(["all", ...Object.keys(TIPO_PRODUTO_LABEL)] as FilterTipo[]).map((t) => {
               const label = t === "all" ? "Todos os tipos" : TIPO_PRODUTO_LABEL[t as TipoProduto];
               return (
                 <button
                   key={t}
+                  type="button"
+                  aria-pressed={filterTipo === t}
                   onClick={() => setFilterTipo(t)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                     filterTipo === t
@@ -228,7 +235,7 @@ export default function MarketplacePage() {
         {/* Loading */}
         {loading && (
           <div className="flex justify-center py-20">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <Loader2 className="w-8 h-8 text-primary animate-spin" role="img" aria-label="Carregando produtos" />
           </div>
         )}
 
@@ -286,13 +293,13 @@ export default function MarketplacePage() {
 
                   <CardContent className="pb-4 space-y-1.5 flex-1 flex flex-col justify-between">
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <FlaskConical className="w-3 h-3" />
                         <span className="italic">
                           {oferta.nomeCientifico || "—"}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <BookOpen className="w-3 h-3" />
                         <span>{oferta.familiaBotanica || "—"}</span>
                       </div>
@@ -322,7 +329,7 @@ export default function MarketplacePage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="mt-3 w-full border-border text-primary-dark hover:bg-primary-light gap-1.5 text-xs h-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="mt-3 w-full border-border text-primary-dark hover:bg-primary-light gap-1.5 text-xs h-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity"
                       onClick={() =>
                         router.push(`/produto/${oferta.id}?oferta=${oferta.estoqueId}`)
                       }

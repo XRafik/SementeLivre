@@ -250,7 +250,7 @@ export default function ProdutoPage() {
                         </option>
                       ))}
                     </select>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted-foreground">
                       {tipoPedido === statusCfg.tipoPedido
                         ? "O produtor aceita negociar: você pode propor outro tipo."
                         : `Proposta: a oferta é de ${TIPO_PEDIDO_LABEL[statusCfg.tipoPedido].toLowerCase()}, o produtor vai avaliar.`}
@@ -260,10 +260,10 @@ export default function ProdutoPage() {
                   <div className="space-y-1.5">
                     <Label>Tipo de negociação</Label>
                     <p className="flex items-center gap-2 rounded-md border border-border bg-primary-light/50 px-3 py-2 text-sm text-slate-700">
-                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                      <Lock className="w-3.5 h-3.5 text-muted-foreground" />
                       {TIPO_PEDIDO_LABEL[statusCfg.tipoPedido]}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted-foreground">
                       O produtor não aceita negociar: só {TIPO_PEDIDO_LABEL[statusCfg.tipoPedido].toLowerCase()}.
                     </p>
                   </div>
@@ -309,7 +309,7 @@ export default function ProdutoPage() {
                     className="border-border focus-visible:ring-ring"
                     required
                   />
-                  <p className="text-xs text-slate-400">Enviamos uma cópia do pedido para este e-mail.</p>
+                  <p className="text-xs text-muted-foreground">Enviamos uma cópia do pedido para este e-mail.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="telefone">Telefone (opcional)</Label>
@@ -334,7 +334,7 @@ export default function ProdutoPage() {
                   placeholder="Informações adicionais, forma de entrega, etc."
                   value={form.mensagemOpcional}
                   onChange={(e) => setForm((p) => ({ ...p, mensagemOpcional: e.target.value }))}
-                  className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                  className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 />
               </div>
 

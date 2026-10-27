@@ -65,7 +65,7 @@ test.describe('Sessão e offline (front-app)', () => {
 
   test('perda de conexão durante o uso mostra aviso de sem conexão', async ({ appLogado: page }) => {
     await page.context().route(`${API_URL}/**`, (route) => route.abort('internetdisconnected'));
-    await page.getByRole('tab', { name: 'Pedidos' }).click();
+    await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Pedidos' }).click();
 
     await expect(toast(page, /Sem conexão com o servidor/)).toBeVisible();
   });
@@ -74,7 +74,7 @@ test.describe('Sessão e offline (front-app)', () => {
     await page.context().route(`${API_URL}/**`, (route) => route.abort('internetdisconnected'));
     await page.goto('/entrar');
     await page.getByLabel('E-mail').fill('alguem@sementelivre.test');
-    await page.getByLabel('Senha').fill('Senha123');
+    await page.getByLabel(/^Senha/).fill('Senha123');
     await page.getByRole('button', { name: 'Entrar' }).click();
 
     await expect(toast(page, /Sem conexão com o servidor/)).toBeVisible();

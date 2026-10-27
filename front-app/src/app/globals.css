@@ -10,13 +10,15 @@
 
 :root {
   /* Paleta principal */
-  --color-primary: #16a34a; /* Verde elegante e acessível */
-  --color-primary-dark: #15803d;
+  /* Verde 700/800: texto branco sobre o primário passa no contraste AA (5:1); o #16a34a ficava em 3,3:1 (#182) */
+  --color-primary: #15803d;
+  --color-primary-dark: #166534;
   --color-primary-light: #dcfce7;
   --color-primary-glow: rgba(22, 163, 74, 0.15);
 
-  --color-danger: #ef4444;
-  --color-danger-dark: #dc2626;
+  /* Tons que passam no contraste AA como texto sobre branco e sobre o fundo claro (#182) */
+  --color-danger: #dc2626;
+  --color-danger-dark: #b91c1c;
   --color-danger-light: #fee2e2;
   
   --color-warning: #f59e0b;
@@ -38,14 +40,14 @@
   /* Texto */
   --color-text: #0f172a;
   --color-text-secondary: #334155;
-  --color-text-muted: #64748b;
+  --color-text-muted: #475569;
   --color-white: #ffffff;
 
   /* Legado (compatibilidade) */
   --color-black: #0f172a;
   --color-gray-900: #1e293b;
   --color-gray-700: #334155;
-  --color-gray-500: #64748b;
+  --color-gray-500: #475569;
   --color-gray-300: #cbd5e1;
   --color-gray-100: #f1f5f9;
 

@@ -109,6 +109,7 @@ export default function EntrarPage() {
             placeholder="Sua senha"
             rightIcon={showSenha ? <EyeOff size={17} strokeWidth={2} /> : <Eye size={17} strokeWidth={2} />}
             onRightIconClick={() => setShowSenha(!showSenha)}
+            rightIconLabel={showSenha ? 'Ocultar senha' : 'Mostrar senha'}
           />
 
           <Link href="/recuperar-senha" className={styles.forgotLink}>

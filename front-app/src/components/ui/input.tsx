@@ -11,10 +11,12 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   onRightIconClick?: () => void;
+  /** Nome do botão do ícone à direita para leitor de tela (ex.: "Mostrar senha"). */
+  rightIconLabel?: string;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, leftIcon, rightIcon, onRightIconClick, required, className, id, ...props }, ref) => {
+  ({ label, error, hint, leftIcon, rightIcon, onRightIconClick, rightIconLabel = 'Ação do campo', required, className, id, ...props }, ref) => {
     const generatedId = useId();
     const inputId = id || generatedId;
     const errorId = `${inputId}-error`;
@@ -50,9 +52,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               type="button"
               className={styles.rightIcon}
               onClick={onRightIconClick}
-              aria-label="Ação do campo"
+              aria-label={rightIconLabel}
             >
-              {rightIcon}
+              <span aria-hidden="true">{rightIcon}</span>
             </button>
           )}
         </div>

@@ -81,6 +81,15 @@
   right: var(--space-3);
   pointer-events: auto;
   cursor: pointer;
+  background: none;
+  border: 0;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.rightIcon:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .hint {

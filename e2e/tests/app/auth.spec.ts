@@ -55,7 +55,7 @@ test.describe('Auth (front-app)', () => {
   test('login com credenciais válidas abre o dashboard', async ({ page, produtor }) => {
     await page.goto('/entrar');
     await page.getByLabel('E-mail').fill(produtor.email);
-    await page.getByLabel('Senha').fill(produtor.senha);
+    await page.getByLabel(/^Senha/).fill(produtor.senha);
     await page.getByRole('button', { name: 'Entrar' }).click();
 
     await expect(page).toHaveURL(/\/dashboard$/);
@@ -66,7 +66,7 @@ test.describe('Auth (front-app)', () => {
   test('login com senha errada avisa e continua na tela de login', async ({ page, produtor }) => {
     await page.goto('/entrar');
     await page.getByLabel('E-mail').fill(produtor.email);
-    await page.getByLabel('Senha').fill('SenhaErrada9');
+    await page.getByLabel(/^Senha/).fill('SenhaErrada9');
     await page.getByRole('button', { name: 'Entrar' }).click();
 
     await expect(toast(page, 'E-mail ou senha incorretos.')).toBeVisible();
@@ -80,7 +80,7 @@ test.describe('Auth (front-app)', () => {
   });
 
   test('logout limpa a sessão e protege as rotas internas', async ({ appLogado: page }) => {
-    await page.getByRole('tab', { name: 'Perfil' }).click();
+    await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Perfil' }).click();
     await page.getByRole('button', { name: 'Sair do Aplicativo' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Sair', exact: true }).click();
 

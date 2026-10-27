@@ -16,7 +16,7 @@ export default function PublicHeader() {
         </Link>
 
         {/* Nav links */}
-        <nav className="hidden sm:flex items-center gap-6 text-sm font-medium text-slate-600">
+        <nav aria-label="Navegação principal" className="hidden sm:flex items-center gap-6 text-sm font-medium text-slate-600">
           <Link href="/" className="hover:text-primary-dark transition-colors">
             Início
           </Link>

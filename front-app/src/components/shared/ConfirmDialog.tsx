@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 
@@ -25,9 +25,10 @@ export function ConfirmDialog({
   onCancel,
   loading = false,
 }: ConfirmDialogProps) {
+  const descricaoId = useId();
   return (
-    <Dialog isOpen={isOpen} onClose={onCancel} title={title}>
-      <p style={{ color: 'var(--color-gray-700)', fontSize: 'var(--font-size-base)', marginBottom: 'var(--space-6)', lineHeight: 1.6 }}>
+    <Dialog isOpen={isOpen} onClose={onCancel} title={title} describedBy={descricaoId}>
+      <p id={descricaoId} style={{ color: 'var(--color-gray-700)', fontSize: 'var(--font-size-base)', marginBottom: 'var(--space-6)', lineHeight: 1.6 }}>
         {description}
       </p>
       <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
