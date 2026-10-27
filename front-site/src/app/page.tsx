@@ -81,14 +81,14 @@ export default function MarketplacePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <PublicHeader />
 
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-green-600 via-green-500 to-green-400 text-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary to-primary-dark text-white">
         {/* Blobs */}
         <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-white/10" />
-        <div className="absolute -bottom-24 -left-16 w-80 h-80 rounded-full bg-green-700/30" />
+        <div className="absolute -bottom-24 -left-16 w-80 h-80 rounded-full bg-primary-dark/30" />
 
         <div className="relative max-w-7xl mx-auto px-6 py-20 flex flex-col items-center text-center gap-6">
           <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -97,7 +97,7 @@ export default function MarketplacePage() {
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight max-w-2xl leading-tight">
             Banco Comunitário de Sementes
           </h1>
-          <p className="text-green-100 text-lg max-w-xl leading-relaxed">
+          <p className="text-primary-light text-lg max-w-xl leading-relaxed">
             Variedades crioulas e orgânicas cultivadas por{" "}
             <strong className="text-white">comunidades quilombolas</strong>.
             Preservando a biodiversidade, cultivando o futuro.
@@ -113,7 +113,7 @@ export default function MarketplacePage() {
 
           <Button
             size="lg"
-            className="bg-white text-green-700 hover:bg-green-50 font-semibold gap-2 mt-2 shadow-lg"
+            className="bg-white text-primary-dark hover:bg-primary-light font-semibold gap-2 mt-2 shadow-lg"
             onClick={() =>
               document
                 .getElementById("sementes")
@@ -132,10 +132,10 @@ export default function MarketplacePage() {
         className="flex-1 max-w-7xl mx-auto w-full px-6 py-14"
       >
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">
+          <h2 className="text-2xl font-bold text-foreground mb-1">
             Sementes Disponíveis
           </h2>
-          <p className="text-gray-500 text-sm">
+          <p className="text-muted-foreground text-sm">
             {filtered.length} resultado{filtered.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -144,19 +144,19 @@ export default function MarketplacePage() {
         <div className="flex flex-col gap-3 mb-8">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 placeholder="Buscar por nome popular..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 border-green-200 focus-visible:ring-green-400"
+                className="pl-9 border-border focus-visible:ring-ring"
               />
             </div>
 
             <select
               value={filterComunidade}
               onChange={(e) => setFilterComunidade(e.target.value)}
-              className="rounded-md border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+              className="rounded-md border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="all">Todas as comunidades</option>
               {comunidades.map(([id, nome]) => (
@@ -180,8 +180,8 @@ export default function MarketplacePage() {
                   onClick={() => setFilter(f)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                     filter === f
-                      ? "bg-green-600 text-white border-green-600 shadow-sm"
-                      : "bg-white text-gray-600 border-gray-200 hover:border-green-300 hover:text-green-700"
+                      ? "bg-primary text-white border-primary shadow-sm"
+                      : "bg-white text-slate-600 border-border hover:border-primary hover:text-primary-dark"
                   }`}
                 >
                   {label}
@@ -200,8 +200,8 @@ export default function MarketplacePage() {
                   onClick={() => setFilterTipo(t)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                     filterTipo === t
-                      ? "bg-green-700 text-white border-green-700 shadow-sm"
-                      : "bg-white text-gray-600 border-gray-200 hover:border-green-300 hover:text-green-700"
+                      ? "bg-primary-dark text-white border-primary-dark shadow-sm"
+                      : "bg-white text-slate-600 border-border hover:border-primary hover:text-primary-dark"
                   }`}
                 >
                   {label}
@@ -214,15 +214,15 @@ export default function MarketplacePage() {
         {/* Loading */}
         {loading && (
           <div className="flex justify-center py-20">
-            <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
           </div>
         )}
 
         {/* Empty state */}
         {!loading && filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-52 bg-white rounded-2xl border border-dashed border-green-200 gap-3">
-            <Leaf className="w-10 h-10 text-green-200" />
-            <p className="text-gray-500 text-sm">
+          <div className="flex flex-col items-center justify-center h-52 bg-white rounded-2xl border border-dashed border-border gap-3">
+            <Leaf className="w-10 h-10 text-primary/30" />
+            <p className="text-muted-foreground text-sm">
               {search
                 ? `Nenhuma semente encontrada para "${search}".`
                 : "Nenhuma semente no catálogo ainda."}
@@ -240,14 +240,14 @@ export default function MarketplacePage() {
               return (
                 <Card
                   key={oferta.estoqueId}
-                  className="group flex flex-col border-green-100 bg-white hover:shadow-lg transition-all"
+                  className="group flex flex-col border-border bg-white hover:shadow-lg transition-all"
                 >
                   {/* Photo */}
-                  <div className="h-40 rounded-t-xl bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center overflow-hidden">
+                  <div className="h-40 rounded-t-xl bg-gradient-to-br from-primary-light/40 to-primary-light flex items-center justify-center overflow-hidden">
                     <FotoProduto
                       src={oferta.urlFoto}
                       alt={oferta.nomePopular}
-                      iconClassName="w-14 h-14 text-green-300"
+                      iconClassName="w-14 h-14 text-primary/40"
                     />
                   </div>
 
@@ -264,7 +264,7 @@ export default function MarketplacePage() {
                       </Badge>
                     </div>
                     {oferta.comunidade && (
-                      <p className="text-[11px] text-green-600 font-medium mt-1">
+                      <p className="text-[11px] text-primary font-medium mt-1">
                         🌿 {oferta.comunidade}
                       </p>
                     )}
@@ -272,33 +272,33 @@ export default function MarketplacePage() {
 
                   <CardContent className="pb-4 space-y-1.5 flex-1 flex flex-col justify-between">
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-400">
                         <FlaskConical className="w-3 h-3" />
                         <span className="italic">
                           {oferta.nomeCientifico || "—"}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-400">
                         <BookOpen className="w-3 h-3" />
                         <span>{oferta.familiaBotanica || "—"}</span>
                       </div>
                       {oferta.quantidade != null && (
-                        <p className="text-xs text-gray-600 font-medium">
+                        <p className="text-xs text-slate-600 font-medium">
                           📦 {oferta.quantidade} {unidade(oferta.tipoPesagem)} em estoque
                         </p>
                       )}
                       {oferta.preco != null && (
-                        <p className="text-xs text-green-700 font-semibold">
+                        <p className="text-xs text-primary-dark font-semibold">
                           R$ {oferta.preco.toFixed(2)}/{unidade(oferta.tipoPesagem)}
                         </p>
                       )}
                       {descricao && (
-                        <p className="text-xs text-gray-500 leading-relaxed line-clamp-3 pt-1">
+                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 pt-1">
                           {descricao}
                         </p>
                       )}
                       {!oferta.aceitaNegociacao && (
-                        <p className="flex items-center gap-1 text-[11px] text-gray-500 pt-1">
+                        <p className="flex items-center gap-1 text-[11px] text-muted-foreground pt-1">
                           <Lock className="w-3 h-3" />
                           Só {cfg.label.replace("Para ", "").toLowerCase()}, sem negociação
                         </p>
@@ -308,7 +308,7 @@ export default function MarketplacePage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="mt-3 w-full border-green-200 text-green-700 hover:bg-green-50 gap-1.5 text-xs h-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="mt-3 w-full border-border text-primary-dark hover:bg-primary-light gap-1.5 text-xs h-8 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() =>
                         router.push(`/produto/${oferta.id}?oferta=${oferta.estoqueId}`)
                       }
@@ -327,18 +327,18 @@ export default function MarketplacePage() {
       {/* ── About section ── */}
       <section
         id="sobre"
-        className="bg-green-700 text-white py-16 px-6"
+        className="bg-primary-dark text-white py-16 px-6"
       >
         <div className="max-w-3xl mx-auto text-center space-y-5">
           <div className="text-5xl">🌿</div>
           <h2 className="text-3xl font-bold">Rede de Quilombos</h2>
-          <p className="text-green-100 text-base leading-relaxed">
+          <p className="text-primary-light text-base leading-relaxed">
             Comunidades quilombolas unidas pela preservação das sementes crioulas
             e pelo fortalecimento da agricultura familiar. Nosso banco comunitário
             de sementes reúne variedades cultivadas há gerações, adaptadas ao
             nosso clima e nossa cultura.
           </p>
-          <p className="text-green-200 text-sm">
+          <p className="text-white/80 text-sm">
             Para negociações e parcerias, entre em contato diretamente com
             nossos produtores.
           </p>
@@ -346,7 +346,7 @@ export default function MarketplacePage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="bg-green-900 text-green-300 text-xs py-5 text-center">
+      <footer className="bg-foreground text-white/70 text-xs py-5 text-center">
         © {new Date().getFullYear()} Semente Livre. Todos os direitos reservados.
       </footer>
     </div>
@@ -357,7 +357,7 @@ function StatPill({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm">
       <span className="font-bold text-white">{value}</span>
-      <span className="text-green-100">{label}</span>
+      <span className="text-primary-light">{label}</span>
     </div>
   );
 }

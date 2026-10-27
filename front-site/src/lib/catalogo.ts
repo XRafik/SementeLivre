@@ -6,17 +6,17 @@ export const DISPONIBILIDADE_CONFIG: Record<
 > = {
   PARA_VENDA: {
     label: "Para Venda",
-    className: "bg-green-100 text-green-700 border-green-200",
+    className: "bg-primary-light text-primary-dark border-transparent",
     tipoPedido: "VENDA",
   },
   PARA_TROCA: {
     label: "Para Troca",
-    className: "bg-blue-100 text-blue-700 border-blue-200",
+    className: "bg-amber-100 text-amber-800 border-transparent",
     tipoPedido: "TROCA",
   },
   PARA_DOACAO: {
     label: "Para Doação",
-    className: "bg-purple-100 text-purple-700 border-purple-200",
+    className: "bg-blue-100 text-blue-900 border-transparent",
     tipoPedido: "DOACAO",
   },
 };

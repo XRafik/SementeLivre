@@ -102,10 +102,10 @@ export default function ProdutoPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen bg-background flex flex-col">
         <PublicHeader />
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
         </div>
       </div>
     );
@@ -113,13 +113,13 @@ export default function ProdutoPage() {
 
   if (!produto || !oferta) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen bg-background flex flex-col">
         <PublicHeader />
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <Leaf className="w-16 h-16 text-green-200" />
-          <p className="text-gray-500">Produto não encontrado.</p>
+          <Leaf className="w-16 h-16 text-primary/30" />
+          <p className="text-muted-foreground">Produto não encontrado.</p>
           <Link href="/">
-            <Button variant="outline" className="gap-2 border-green-200 text-green-700">
+            <Button variant="outline" className="gap-2 border-border text-primary-dark">
               <ArrowLeft className="w-4 h-4" /> Voltar ao catálogo
             </Button>
           </Link>
@@ -133,32 +133,32 @@ export default function ProdutoPage() {
   const local = [produto.municipio, produto.uf].filter(Boolean).join(" - ");
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <PublicHeader />
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-10 space-y-8">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-green-600 hover:underline">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
           <ArrowLeft className="w-4 h-4" /> Voltar ao catálogo
         </Link>
 
         {/* ── Product detail ── */}
-        <Card className="border-green-100">
+        <Card className="border-border">
           <div className="flex flex-col md:flex-row gap-6 p-6">
             {/* Photo */}
-            <div className="md:w-64 flex-shrink-0 h-48 md:h-auto rounded-xl bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center overflow-hidden">
-              <FotoProduto src={produto.urlFoto} alt={produto.nomePopular} iconClassName="w-20 h-20 text-green-300" />
+            <div className="md:w-64 flex-shrink-0 h-48 md:h-auto rounded-xl bg-gradient-to-br from-primary-light/40 to-primary-light flex items-center justify-center overflow-hidden">
+              <FotoProduto src={produto.urlFoto} alt={produto.nomePopular} iconClassName="w-20 h-20 text-primary/40" />
             </div>
 
             {/* Info */}
             <div className="flex-1 space-y-3">
               <div className="flex items-start justify-between gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold text-gray-900">{produto.nomePopular}</h1>
+                <h1 className="text-2xl font-bold text-foreground">{produto.nomePopular}</h1>
                 <Badge variant="outline" className={`${statusCfg.className} text-sm`}>
                   {statusCfg.label}
                 </Badge>
               </div>
 
-              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-500">
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <FlaskConical className="w-3.5 h-3.5" />
                   <em>{produto.nomeCientifico || "—"}</em>
@@ -170,13 +170,13 @@ export default function ProdutoPage() {
               </div>
 
               {produto.tipo && (
-                <span className="inline-block bg-green-100 text-green-700 text-xs font-medium px-2.5 py-0.5 rounded-full border border-green-200">
+                <span className="inline-block bg-primary-light text-primary-dark text-xs font-medium px-2.5 py-0.5 rounded-full border border-border">
                   {TIPO_PRODUTO_LABEL[produto.tipo]}
                 </span>
               )}
 
               {produto.comunidade && (
-                <p className="text-xs text-green-600 font-medium">
+                <p className="text-xs text-primary font-medium">
                   🌿 {produto.comunidade}
                   {local && ` · ${local}`}
                 </p>
@@ -184,28 +184,28 @@ export default function ProdutoPage() {
 
               <div className="flex gap-4 flex-wrap text-sm">
                 {oferta.quantidade != null && (
-                  <span className="text-gray-700 font-medium">
+                  <span className="text-slate-700 font-medium">
                     📦 {oferta.quantidade} {unidade(oferta.tipoPesagem)} em estoque
                   </span>
                 )}
                 {oferta.preco != null && (
-                  <span className="text-green-700 font-bold text-base">
+                  <span className="text-primary-dark font-bold text-base">
                     R$ {oferta.preco.toFixed(2)}/{unidade(oferta.tipoPesagem)}
                   </span>
                 )}
               </div>
 
               {descricao && (
-                <p className="text-sm text-gray-600 leading-relaxed">{descricao}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{descricao}</p>
               )}
             </div>
           </div>
         </Card>
 
         {/* ── Order form ── */}
-        <Card className="border-green-100">
+        <Card className="border-border">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-800">Fazer pedido</CardTitle>
+            <CardTitle className="text-lg text-foreground">Fazer pedido</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -219,7 +219,7 @@ export default function ProdutoPage() {
                       setEstoqueId(e.target.value);
                       setTipoProposto(null);
                     }}
-                    className="w-full rounded-md border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                    className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     {produto.ofertas.map((o) => (
                       <option key={o.estoqueId} value={o.estoqueId}>
@@ -241,7 +241,7 @@ export default function ProdutoPage() {
                       id="tipoPedido"
                       value={tipoPedido ?? statusCfg.tipoPedido}
                       onChange={(e) => setTipoProposto(e.target.value as TipoPedido)}
-                      className="w-full rounded-md border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                      className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       {(Object.keys(TIPO_PEDIDO_LABEL) as TipoPedido[]).map((t) => (
                         <option key={t} value={t}>
@@ -250,7 +250,7 @@ export default function ProdutoPage() {
                         </option>
                       ))}
                     </select>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-slate-400">
                       {tipoPedido === statusCfg.tipoPedido
                         ? "O produtor aceita negociar: você pode propor outro tipo."
                         : `Proposta: a oferta é de ${TIPO_PEDIDO_LABEL[statusCfg.tipoPedido].toLowerCase()}, o produtor vai avaliar.`}
@@ -259,11 +259,11 @@ export default function ProdutoPage() {
                 ) : (
                   <div className="space-y-1.5">
                     <Label>Tipo de negociação</Label>
-                    <p className="flex items-center gap-2 rounded-md border border-green-100 bg-green-50/50 px-3 py-2 text-sm text-gray-700">
-                      <Lock className="w-3.5 h-3.5 text-gray-400" />
+                    <p className="flex items-center gap-2 rounded-md border border-border bg-primary-light/50 px-3 py-2 text-sm text-slate-700">
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
                       {TIPO_PEDIDO_LABEL[statusCfg.tipoPedido]}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-slate-400">
                       O produtor não aceita negociar: só {TIPO_PEDIDO_LABEL[statusCfg.tipoPedido].toLowerCase()}.
                     </p>
                   </div>
@@ -278,27 +278,27 @@ export default function ProdutoPage() {
                     max={oferta.quantidade ?? undefined}
                     value={form.quantidade}
                     onChange={(e) => setForm((p) => ({ ...p, quantidade: Number(e.target.value) }))}
-                    className="border-green-200 focus-visible:ring-green-400"
+                    className="border-border focus-visible:ring-ring"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="nome">Seu nome <span className="text-red-500">*</span></Label>
+                <Label htmlFor="nome">Seu nome <span className="text-destructive">*</span></Label>
                 <Input
                   id="nome"
                   placeholder="Nome completo"
                   maxLength={150}
                   value={form.nome}
                   onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))}
-                  className="border-green-200 focus-visible:ring-green-400"
+                  className="border-border focus-visible:ring-ring"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="email">E-mail <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="email">E-mail <span className="text-destructive">*</span></Label>
                   <Input
                     id="email"
                     type="email"
@@ -306,10 +306,10 @@ export default function ProdutoPage() {
                     maxLength={254}
                     value={form.email}
                     onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                    className="border-green-200 focus-visible:ring-green-400"
+                    className="border-border focus-visible:ring-ring"
                     required
                   />
-                  <p className="text-xs text-gray-400">Enviamos uma cópia do pedido para este e-mail.</p>
+                  <p className="text-xs text-slate-400">Enviamos uma cópia do pedido para este e-mail.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="telefone">Telefone (opcional)</Label>
@@ -320,7 +320,7 @@ export default function ProdutoPage() {
                     maxLength={20}
                     value={form.telefone}
                     onChange={(e) => setForm((p) => ({ ...p, telefone: e.target.value }))}
-                    className="border-green-200 focus-visible:ring-green-400"
+                    className="border-border focus-visible:ring-ring"
                   />
                 </div>
               </div>
@@ -334,14 +334,14 @@ export default function ProdutoPage() {
                   placeholder="Informações adicionais, forma de entrega, etc."
                   value={form.mensagemOpcional}
                   onChange={(e) => setForm((p) => ({ ...p, mensagemOpcional: e.target.value }))}
-                  className="w-full rounded-md border border-green-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
+                  className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 />
               </div>
 
               <Button
                 type="submit"
                 disabled={submitting}
-                className="w-full bg-green-600 hover:bg-green-700 text-white gap-2"
+                className="w-full bg-primary hover:bg-primary-dark text-white gap-2"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 Enviar pedido
@@ -351,7 +351,7 @@ export default function ProdutoPage() {
         </Card>
       </main>
 
-      <footer className="bg-green-900 text-green-300 text-xs py-5 text-center">
+      <footer className="bg-foreground text-white/70 text-xs py-5 text-center">
         © {new Date().getFullYear()} Semente Livre. Todos os direitos reservados.
       </footer>
     </div>
