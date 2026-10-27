@@ -9,9 +9,9 @@ test.describe('Notificações (front-app)', () => {
     await expect(page.getByText('Nenhuma notificacao')).toBeVisible();
   });
 
-  test('pedido registrado gera notificação não lida que leva ao pedido', async ({ appLogado: page, produtor }) => {
+  test('pedido registrado gera notificação não lida; tocar só marca como lida', async ({ appLogado: page, produtor }) => {
     const oferta = await criarOferta(produtor);
-    const idPedido = await registrarPedido(page, oferta, 1, 'Recebedor Notificado');
+    await registrarPedido(page, oferta, 1, 'Recebedor Notificado');
 
     await page.goto('/dashboard');
     const sino = page.getByRole('link', { name: /^Notificações, \d+ não lidas$/ });
@@ -23,8 +23,14 @@ test.describe('Notificações (front-app)', () => {
     await expect(naoLida).toBeVisible();
     await naoLida.click();
 
-    await expect(page).toHaveURL(new RegExp(`/pedidos/${idPedido}$`));
-    await page.goto('/notificacoes');
+    // Continua na lista: a notificação não é um atalho para o pedido (#180)
+    await expect(page.getByRole('button', { name: / - nao lida$/ })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/notificacoes$/);
+
+    // Tocar de novo numa já lida também não sai da tela
+    await page.getByRole('button', { name: /^Pedido|^Novo pedido/ }).first().click();
+    await expect(page).toHaveURL(/\/notificacoes$/);
+    await page.reload();
     await expect(page.getByRole('button', { name: / - nao lida$/ })).toHaveCount(0);
   });
 
