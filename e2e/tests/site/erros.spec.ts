@@ -16,7 +16,7 @@ test.describe('Estados de erro (front-site)', () => {
       route.fulfill({ status: 502, json: { message: 'Não foi possível falar com o servidor.' } })
     );
     await page.goto('/');
-    await expect(page.getByText('Erro ao carregar sementes.')).toBeVisible();
+    await expect(page.getByText('Erro ao carregar produtos.')).toBeVisible();
   });
 
   test('pedido sem nome e e-mail não é enviado', async ({ page }) => {

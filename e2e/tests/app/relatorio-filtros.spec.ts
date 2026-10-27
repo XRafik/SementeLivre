@@ -184,12 +184,12 @@ test.describe('Relatórios com dados reais (#103)', () => {
     await expect(tabela.getByText(`Comprador Venda ${id}`)).toBeVisible();
 
     await chip(page, 'Filtrar por status', 'Todos').click();
-    await page.getByLabel('Semente').selectOption({ label: feijao.nomePopular });
+    await page.getByLabel('Produto').selectOption({ label: feijao.nomePopular });
     await gerar(page);
     await expect(page.getByText('Prévia — 2 registros')).toBeVisible();
     await expect(tabela.getByText(`Comprador Troca ${id}`)).toHaveCount(0);
 
-    await page.getByLabel('Semente').selectOption({ label: 'Todas' });
+    await page.getByLabel('Produto').selectOption({ label: 'Todos' });
     await page.getByLabel('Data início').fill(hoje());
     await page.getByLabel('Data fim').fill(hoje());
     await gerar(page);

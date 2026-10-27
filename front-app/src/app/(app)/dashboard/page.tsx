@@ -141,13 +141,13 @@ export default function DashboardPage() {
               <AlertTriangle size={15} strokeWidth={2.5} className={styles.alertIcon} />
               <h2 className={styles.sectionTitle}>Estoque baixo</h2>
             </div>
-            <Link href="/sementes" className={styles.sectionLink}>
+            <Link href="/produtos" className={styles.sectionLink}>
               Ver todos <ChevronRight size={13} strokeWidth={2.5} />
             </Link>
           </div>
           <div className={styles.alertList}>
             {lowStock.slice(0, 3).map((s) => (
-              <Link key={s.idEstoque} href={`/sementes/${s.idEstoque}`} className={styles.alertCard}>
+              <Link key={s.idEstoque} href={`/produtos/${s.idEstoque}`} className={styles.alertCard}>
                 <div className={styles.alertIconBox}>
                   <Sprout size={16} strokeWidth={2} />
                 </div>
@@ -172,7 +172,7 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className={styles.shortcutGrid}>
-          <button className={styles.shortcutBtn} onClick={() => router.push('/sementes/nova')}>
+          <button className={styles.shortcutBtn} onClick={() => router.push('/produtos/nova')}>
             <div className={styles.shortcutIconWrap}>
               <Plus size={18} strokeWidth={2.5} />
             </div>

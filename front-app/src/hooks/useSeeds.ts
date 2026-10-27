@@ -112,7 +112,7 @@ export function useSeeds() {
 
       // O backend separa o "o que é" (/produtos) do "quanto há" (/estoques),
       // então o cadastro é em duas etapas e devolvemos o id do estoque — que é
-      // o que as telas usam em /sementes/[id].
+      // o que as telas usam em /produtos/[id].
       const produto = await criarProduto({
         nomePopular: data.nomePopular,
         nomeCientifico: data.nomeCientifico ?? null,

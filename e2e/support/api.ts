@@ -100,7 +100,7 @@ async function autenticado(produtor: Produtor): Promise<APIRequestContext> {
   });
 }
 
-/** Produto (com foto enviada de verdade) + estoque do produtor, como o app faz em /sementes/nova. */
+/** Produto (com foto enviada de verdade) + estoque do produtor, como o app faz em /produtos/nova. */
 export async function criarOferta(
   produtor: Produtor,
   opcoes: {

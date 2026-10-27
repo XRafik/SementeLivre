@@ -45,7 +45,7 @@ export default function SementeDetailPage() {
   }, [id, getSeed]);
 
   if (loading) return <div className={styles.loading}><div className="skeleton" style={{ height: 200, borderRadius: 16 }} /></div>;
-  if (!seed) return <EmptyState icon={<PackageSearch size={38} strokeWidth={1.5} />} title="Produto nao encontrado" actionLabel="Voltar" onAction={() => router.push('/sementes')} />;
+  if (!seed) return <EmptyState icon={<PackageSearch size={38} strokeWidth={1.5} />} title="Produto nao encontrado" actionLabel="Voltar" onAction={() => router.push('/produtos')} />;
 
   const disponibilidadeAtual = (editForm.disponibilidade ?? seed.disponibilidade) as DisponibilidadeProduto;
   const tipoNegociavelEdicao = TipoNegociavelLabels[disponibilidadeAtual];
@@ -68,7 +68,7 @@ export default function SementeDetailPage() {
     try {
       await deleteSeed(id);
       showToast('Produto removido.', 'success');
-      router.push('/sementes');
+      router.push('/produtos');
     } catch { showToast('Erro ao excluir.', 'error'); }
     finally { setDeleting(false); }
   };
@@ -182,7 +182,7 @@ export default function SementeDetailPage() {
               <BarChart2 size={16} strokeWidth={2} />
               Ajustar Estoque
             </Button>
-            <Link href={`/sementes/${id}/estoque`}>
+            <Link href={`/produtos/${id}/estoque`}>
               <Button variant="ghost" fullWidth>
                 <List size={16} strokeWidth={2} />
                 Ver Movimentacoes

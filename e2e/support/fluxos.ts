@@ -9,7 +9,7 @@ export async function registrarPedido(page: Page, oferta: Oferta, quantidade: nu
   await page.getByLabel('Contato (telefone ou e-mail)').fill('(32) 99999-0000');
   await page.getByRole('button', { name: '+ Adicionar' }).click();
 
-  const dialogo = page.getByRole('dialog', { name: 'Selecionar Semente' });
+  const dialogo = page.getByRole('dialog', { name: 'Selecionar Produto' });
   await dialogo.getByRole('button', { name: new RegExp(oferta.nomePopular) }).click();
   await dialogo.getByLabel(/Quantidade \(máx/).fill(String(quantidade));
   await dialogo.getByRole('button', { name: 'Adicionar', exact: true }).click();

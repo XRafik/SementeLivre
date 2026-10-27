@@ -58,7 +58,7 @@ test.describe('Pedidos (front-app)', () => {
     const oferta = await criarOferta(produtor, { quantidade: 3 });
     await page.goto('/pedidos/novo');
     await page.getByRole('button', { name: '+ Adicionar' }).click();
-    const dialogo = page.getByRole('dialog', { name: 'Selecionar Semente' });
+    const dialogo = page.getByRole('dialog', { name: 'Selecionar Produto' });
     await dialogo.getByRole('button', { name: new RegExp(oferta.nomePopular) }).click();
     await dialogo.getByLabel(/Quantidade \(máx/).fill('99');
     await dialogo.getByRole('button', { name: 'Adicionar', exact: true }).click();

@@ -110,7 +110,7 @@ export default function NovoPedidoPage() {
 
       <div className={styles.card}>
         <div className={styles.sectionHeader}>
-          <p className={styles.sectionTitle}>Sementes</p>
+          <p className={styles.sectionTitle}>Produtos</p>
           <Button type="button" variant="secondary" size="sm" onClick={() => setShowSeedPicker(true)}>+ Adicionar</Button>
         </div>
         {errors.itens && <span className={styles.error} role="alert">⚠ {errors.itens}</span>}
@@ -140,12 +140,12 @@ export default function NovoPedidoPage() {
       <Button type="submit" fullWidth size="lg" loading={loading}>Registrar Pedido</Button>
 
       {/* Seed Picker Dialog */}
-      <Dialog isOpen={showSeedPicker} onClose={() => { setShowSeedPicker(false); setSelectedSeed(null); setPickQty(''); }} title="Selecionar Semente">
+      <Dialog isOpen={showSeedPicker} onClose={() => { setShowSeedPicker(false); setSelectedSeed(null); setPickQty(''); }} title="Selecionar Produto">
         <div className={styles.seedList}>
           {loadingStock && <p className={styles.seedStock}>Carregando estoque...</p>}
           {stockError && <span className={styles.error} role="alert">⚠ {stockError}</span>}
           {!loadingStock && !stockError && availableSeeds.length === 0 && (
-            <p className={styles.seedStock}>Nenhuma semente com estoque disponível.</p>
+            <p className={styles.seedStock}>Nenhum produto com estoque disponível.</p>
           )}
           {availableSeeds.map((s) => (
             <button

@@ -20,8 +20,8 @@ export default function PublicHeader() {
           <Link href="/" className="hover:text-primary-dark transition-colors">
             Início
           </Link>
-          <Link href="/#sementes" className="hover:text-primary-dark transition-colors">
-            Sementes
+          <Link href="/#produtos" className="hover:text-primary-dark transition-colors">
+            Produtos
           </Link>
           <Link href="/#comunidades" className="hover:text-primary-dark transition-colors">
             Comunidades

@@ -90,7 +90,7 @@ export default function PedidosPage() {
         </div>
         <div className={styles.historyFilters}>
           <Select label="Tipo" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} options={[{ value: '', label: 'Todos' }, ...tipoOptions]} />
-          <Select label="Semente" value={filtroSemente} onChange={(e) => setFiltroSemente(e.target.value)} options={[{ value: '', label: 'Todas' }, ...sementeOptions]} />
+          <Select label="Produto" value={filtroSemente} onChange={(e) => setFiltroSemente(e.target.value)} options={[{ value: '', label: 'Todos' }, ...sementeOptions]} />
           <Input label="De" type="date" value={dataInicio} max={dataFim || undefined} onChange={(e) => setDataInicio(e.target.value)} />
           <Input label="Até" type="date" value={dataFim} min={dataInicio || undefined} onChange={(e) => setDataFim(e.target.value)} error={periodoInvalido ? 'Data final antes da inicial' : undefined} />
         </div>

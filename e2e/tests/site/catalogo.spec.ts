@@ -22,7 +22,7 @@ test.describe('Catálogo público (front-site)', () => {
     await page.goto('/');
     const termo = `inexistente-${unico()}`;
     await page.getByPlaceholder('Buscar por nome popular...').fill(termo);
-    await expect(page.getByText(`Nenhuma semente encontrada para "${termo}".`)).toBeVisible();
+    await expect(page.getByText(`Nenhum produto encontrado para "${termo}".`)).toBeVisible();
   });
 
   test('filtro de disponibilidade separa venda e doação', async ({ page }) => {

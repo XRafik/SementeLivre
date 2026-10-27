@@ -94,7 +94,7 @@ export default function NovaSementePage() {
         dataUltimaAtualizacaoEstoque: new Date(),
       });
       showToast('Produto cadastrado com sucesso!', 'success');
-      router.push('/sementes');
+      router.push('/produtos');
     } catch (err) {
       showToast(
         isApiError(err)

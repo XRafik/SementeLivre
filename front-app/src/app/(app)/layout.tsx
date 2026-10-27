@@ -11,8 +11,8 @@ import styles from './app.module.css';
 
 const headerConfig: Record<string, { title: string; showBack?: boolean; showNotifications?: boolean }> = {
   '/dashboard': { title: 'Semente Livre', showNotifications: true },
-  '/sementes': { title: 'Meus Produtos', showNotifications: true },
-  '/sementes/nova': { title: 'Cadastrar Produto', showBack: true },
+  '/produtos': { title: 'Meus Produtos', showNotifications: true },
+  '/produtos/nova': { title: 'Cadastrar Produto', showBack: true },
   '/pedidos': { title: 'Pedidos', showNotifications: true },
   '/pedidos/novo': { title: 'Novo Pedido', showBack: true },
   '/propriedades': { title: 'Propriedades', showNotifications: true },
@@ -58,7 +58,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   const config = Object.entries(headerConfig).find(([key]) =>
-    pathname === key || (key !== '/sementes' && key !== '/pedidos' && key !== '/propriedades' && pathname.startsWith(key + '/'))
+    pathname === key || (key !== '/produtos' && key !== '/pedidos' && key !== '/propriedades' && pathname.startsWith(key + '/'))
   )?.[1] || { title: 'Semente Livre', showBack: true };
 
   return (

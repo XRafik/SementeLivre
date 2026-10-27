@@ -47,7 +47,7 @@ export default function RelatoriosPage() {
   const dispOptions = [{ value: 'TODOS', label: 'Todas' }, ...Object.entries(DisponibilidadeLabels).map(([v, l]) => ({ value: v, label: l }))];
   const statusOptions = [{ value: 'TODOS', label: 'Todos' }, ...Object.entries(StatusPedidoLabels).map(([v, l]) => ({ value: v, label: l }))];
   const especieOptions = [{ value: 'TODOS', label: 'Todas' }, ...Object.entries(EspecieGeralLabels).map(([v, l]) => ({ value: v, label: l }))];
-  const sementeOptions = [{ value: 'TODOS', label: 'Todas' }, ...seeds.map((s) => ({ value: s.idProduto, label: s.nomePopular }))];
+  const sementeOptions = [{ value: 'TODOS', label: 'Todos' }, ...seeds.map((s) => ({ value: s.idProduto, label: s.nomePopular }))];
   const tipoPedidoOptions = [{ value: 'TODOS', label: 'Todos' }, ...Object.entries(TipoPedidoLabels).map(([v, l]) => ({ value: v, label: l }))];
 
   const filteredSeeds = seeds.filter((s) => {
@@ -208,7 +208,7 @@ export default function RelatoriosPage() {
                 <button key={f.value} className={`${styles.chip} ${filtroTipo === f.value ? styles.chipActive : ''}`} onClick={() => mudarFiltro(() => setFiltroTipo(f.value))} aria-pressed={filtroTipo === f.value}>{f.label}</button>
               ))}
             </div>
-            <Select label="Semente" options={sementeOptions} value={filtroSemente} onChange={(e) => mudarFiltro(() => setFiltroSemente(e.target.value))} />
+            <Select label="Produto" options={sementeOptions} value={filtroSemente} onChange={(e) => mudarFiltro(() => setFiltroSemente(e.target.value))} />
           </>
         )}
         <Button variant="primary" fullWidth onClick={handleGenerate} loading={gerando} disabled={carregandoDados}>
@@ -237,7 +237,7 @@ export default function RelatoriosPage() {
             <div className={styles.tableWrap}>
               <table className={styles.table} aria-label="Relatório de estoque">
                 <thead>
-                  <tr><th>Semente</th><th>Qtd.</th><th>Unid.</th><th>Disp.</th></tr>
+                  <tr><th>Produto</th><th>Qtd.</th><th>Unid.</th><th>Disp.</th></tr>
                 </thead>
                 <tbody>
                   {filteredSeeds.map((s) => (
@@ -287,7 +287,7 @@ export default function RelatoriosPage() {
                 {historico.map((r) => (
                   <tr key={r.idRelatorio}>
                     <td>{r.dataGeracao.toLocaleString('pt-BR')}</td>
-                    <td>{r.tipo === 'ESTOQUE_SEMENTES' ? 'Estoque de sementes' : 'Pedidos realizados'}</td>
+                    <td>{r.tipo === 'ESTOQUE_SEMENTES' ? 'Estoque de produtos' : 'Pedidos realizados'}</td>
                     <td>{String(r.filtros.totalRegistros ?? '—')}</td>
                   </tr>
                 ))}

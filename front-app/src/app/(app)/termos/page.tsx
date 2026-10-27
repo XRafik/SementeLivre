@@ -33,7 +33,7 @@ export default function TermosPage() {
           <p className={styles.text}>
             O Semente Livre é uma plataforma de gestão de bancos de sementes crioulas mantida
             pelo IF Sudeste MG — Campus Rio Pomba. O sistema organiza o cadastro de produtores,
-            o controle de estoque de sementes, a realização de trocas, vendas e doações, e a
+            o controle de estoque de produtos (sementes e mudas), a realização de trocas, vendas e doações, e a
             emissão de relatórios.
           </p>
         </section>

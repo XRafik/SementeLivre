@@ -8,7 +8,7 @@ import styles from './BottomNavigation.module.css';
 
 const navItems = [
   { href: '/dashboard', label: 'Início', Icon: LayoutDashboard },
-  { href: '/sementes', label: 'Produtos', Icon: Package },
+  { href: '/produtos', label: 'Produtos', Icon: Package },
   { href: '/pedidos', label: 'Pedidos', Icon: ShoppingCart },
   { href: '/propriedades', label: 'Propriedades', Icon: MapPin },
   { href: '/perfil', label: 'Perfil', Icon: User },

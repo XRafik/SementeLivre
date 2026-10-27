@@ -14,7 +14,7 @@ test.describe('Relatórios (front-app)', () => {
     await expect(page.getByText('Prévia — 1 registros')).toBeVisible();
     await expect(page.getByRole('table', { name: 'Relatório de estoque' }).getByText(oferta.nomePopular)).toBeVisible();
     // A emissão fica no histórico do backend
-    await expect(page.getByRole('table', { name: 'Histórico de relatórios emitidos' }).getByText('Estoque de sementes')).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Histórico de relatórios emitidos' }).getByText('Estoque de produtos')).toBeVisible();
 
     const [pdf] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: '⬇ PDF' }).click()]);
     expect(pdf.suggestedFilename()).toMatch(/\.pdf$/);
@@ -97,6 +97,6 @@ test.describe('Relatórios (front-app)', () => {
     await expect(toast(page, 'Relatório gerado e registrado!')).toBeVisible();
     liberar();
 
-    await expect(page.getByRole('table', { name: 'Histórico de relatórios emitidos' }).getByText('Estoque de sementes')).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Histórico de relatórios emitidos' }).getByText('Estoque de produtos')).toBeVisible();
   });
 });

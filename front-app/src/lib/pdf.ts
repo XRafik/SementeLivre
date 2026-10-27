@@ -73,7 +73,7 @@ export async function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroEs
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(13);
   doc.setTextColor(30, 30, 30);
-  doc.text(ehEstoque ? 'Relatório de Estoque de Sementes' : 'Relatório de Pedidos Realizados', 14, 26);
+  doc.text(ehEstoque ? 'Relatório de Estoque de Produtos' : 'Relatório de Pedidos Realizados', 14, 26);
 
   doc.setFontSize(9);
   doc.setTextColor(120, 120, 120);
@@ -91,7 +91,7 @@ export async function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroEs
     if (filtroTipo && filtroTipo !== 'TODOS') {
       filtros.push(`Tipo: ${TipoPedidoLabels[filtroTipo as keyof typeof TipoPedidoLabels]}`);
     }
-    if (nomeSemente) filtros.push(`Semente: ${nomeSemente}`);
+    if (nomeSemente) filtros.push(`Produto: ${nomeSemente}`);
     if (dataInicio) filtros.push(`De: ${formatarDataBr(dataInicio)}`);
     if (dataFim) filtros.push(`Até: ${formatarDataBr(dataFim)}`);
   }
@@ -105,7 +105,7 @@ export async function baixarRelatorioPdf({ tipo, filtroDisponibilidade, filtroEs
 
   // ── Tabela ───────────────────────────────────────────────────────────────
   const head = ehEstoque
-    ? ['Semente', 'Quantidade', 'Unidade', 'Disponibilidade', 'Preço']
+    ? ['Produto', 'Quantidade', 'Unidade', 'Disponibilidade', 'Preço']
     : ['ID', 'Data', 'Recebedor', 'Tipo', 'Status', 'Total'];
   const body = ehEstoque
     ? seeds.map((s) => [

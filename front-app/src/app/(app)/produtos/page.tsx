@@ -46,7 +46,7 @@ export default function SementesPage() {
             aria-label="Buscar produto"
           />
         </div>
-        <Link href="/sementes/nova" className={styles.addBtn} aria-label="Cadastrar novo produto">
+        <Link href="/produtos/nova" className={styles.addBtn} aria-label="Cadastrar novo produto">
           <Plus size={18} strokeWidth={2.5} />
         </Link>
       </div>
@@ -79,7 +79,7 @@ export default function SementesPage() {
             title="Nenhum produto cadastrado"
             description="Cadastre seu primeiro produto para começar a gerenciar seu estoque."
             actionLabel="Cadastrar Produto"
-            onAction={() => router.push('/sementes/nova')}
+            onAction={() => router.push('/produtos/nova')}
           />
         ) : (
           <EmptyState
@@ -92,7 +92,7 @@ export default function SementesPage() {
         <ul className={styles.list} aria-label={`${filtered.length} produtos encontrados`}>
           {filtered.map((seed) => (
             <li key={seed.idEstoque}>
-              <Link href={`/sementes/${seed.idEstoque}`} className={styles.card}>
+              <Link href={`/produtos/${seed.idEstoque}`} className={styles.card}>
                 <div className={styles.cardImg}>
                   {seed.urlFoto ? (
                     <img src={seed.urlFoto} alt={`Foto de ${seed.nomePopular}`} className={styles.img} />

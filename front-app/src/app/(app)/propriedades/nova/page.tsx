@@ -12,7 +12,7 @@ import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { fetchCEP, formatCEP } from '@/lib/validators';
-import styles from '@/app/(app)/sementes/nova/nova.module.css';
+import styles from '@/app/(app)/produtos/nova/nova.module.css';
 import formStyles from './propriedade.module.css';
 
 export default function NovaPropriedadePage() {

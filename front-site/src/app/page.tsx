@@ -52,7 +52,7 @@ export default function MarketplacePage() {
       .then((lista: OfertaCatalogo[]) =>
         setOfertas([...lista].sort((a, b) => a.nomePopular.localeCompare(b.nomePopular, "pt-BR")))
       )
-      .catch(() => toast.error("Erro ao carregar sementes."))
+      .catch(() => toast.error("Erro ao carregar produtos."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -108,7 +108,7 @@ export default function MarketplacePage() {
 
           {/* Stats row */}
           <div className="flex gap-4 flex-wrap justify-center mt-2">
-            <StatPill value={stats.total} label="Espécies" />
+            <StatPill value={stats.total} label="Produtos" />
             <StatPill value={stats.sale} label="À Venda" />
             <StatPill value={stats.exchange} label="Para Troca" />
             <StatPill value={stats.donation} label="Para Doação" />
@@ -120,11 +120,11 @@ export default function MarketplacePage() {
               className="bg-white text-primary-dark hover:bg-primary-light font-semibold gap-2 shadow-lg"
               onClick={() =>
                 document
-                  .getElementById("sementes")
+                  .getElementById("produtos")
                   ?.scrollIntoView({ behavior: "smooth" })
               }
             >
-              Ver sementes disponíveis
+              Ver produtos disponíveis
               <ArrowRight className="w-4 h-4" />
             </Button>
             <a
@@ -142,12 +142,12 @@ export default function MarketplacePage() {
 
       {/* ── Seed catalog ── */}
       <section
-        id="sementes"
+        id="produtos"
         className="flex-1 max-w-7xl mx-auto w-full px-6 py-14"
       >
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-foreground mb-1">
-            Sementes Disponíveis
+            Produtos Disponíveis
           </h2>
           <p className="text-muted-foreground text-sm">
             {filtered.length} resultado{filtered.length !== 1 ? "s" : ""}
@@ -238,8 +238,8 @@ export default function MarketplacePage() {
             <Leaf className="w-10 h-10 text-primary/30" />
             <p className="text-muted-foreground text-sm">
               {search
-                ? `Nenhuma semente encontrada para "${search}".`
-                : "Nenhuma semente no catálogo ainda."}
+                ? `Nenhum produto encontrado para "${search}".`
+                : "Nenhum produto no catálogo ainda."}
             </p>
           </div>
         )}
@@ -362,7 +362,7 @@ export default function MarketplacePage() {
           <div className="flex-1 text-center sm:text-left space-y-2">
             <h2 id="titulo-app" className="text-2xl font-bold">É produtor? Use o app Semente Livre</h2>
             <p className="text-primary-light text-sm leading-relaxed">
-              Cadastre suas sementes e mudas, acompanhe o estoque e responda aos pedidos pelo celular.
+              Cadastre seus produtos, acompanhe o estoque e responda aos pedidos pelo celular.
               Funciona no navegador e pode ser instalado na tela inicial.
             </p>
           </div>
