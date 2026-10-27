@@ -23,6 +23,9 @@ export default function PublicHeader() {
           <Link href="/#sementes" className="hover:text-primary-dark transition-colors">
             Sementes
           </Link>
+          <Link href="/#comunidades" className="hover:text-primary-dark transition-colors">
+            Comunidades
+          </Link>
           <Link href="/#sobre" className="hover:text-primary-dark transition-colors">
             Sobre a Rede
           </Link>

@@ -65,4 +65,15 @@ front-site/src/
 
 ---
 
+## 7.5 Variáveis de ambiente
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `BACKEND_URL` | `http://localhost:8080` | Backend Spring Boot (API Routes e fotos em `/uploads`) |
+| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Link "Acessar o app" da página inicial (front-app) |
+
+As fotos do carrossel "Conheça as comunidades" ficam listadas em `src/lib/divulgacao.ts`. Para trocar as provisórias, coloque as fotos em `public/comunidades/` e atualize a lista.
+
+---
+
 *[Voltar à Wiki](README.md) · [06. Frontend — PWA](06-frontend-pwa.md) · [08. Autenticação e Segurança](08-autenticacao-seguranca.md)*
