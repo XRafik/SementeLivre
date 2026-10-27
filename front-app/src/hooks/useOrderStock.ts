@@ -34,7 +34,7 @@ interface ProdutoApi {
 /**
  * Estoque do proprietário logado, lido do backend. O formulário de pedido usa
  * os ids reais de produto (UUID) daqui, e a quantidade mostrada é o saldo
- * atual, já descontadas as reservas de pedidos PENDENTE/CONFIRMADO.
+ * atual, já descontados os pedidos confirmados (os pendentes não baixam, #183).
  */
 export function useOrderStock() {
   // O login so aceita conta de proprietario; o id da sessao e o do proprietario

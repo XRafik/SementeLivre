@@ -94,7 +94,7 @@ export function useOrders(filtro?: FiltroPedidos) {
   const loading = !!proprietarioId && result?.key !== requestKey;
   const error = proprietarioId ? result?.error ?? null : 'Perfil de proprietário não encontrado.';
 
-  /** Registra o pedido; o backend valida e reserva o estoque. Retorna o id. */
+  /** Registra o pedido na fila; o backend confere o saldo, sem baixar. Retorna o id. */
   const createOrder = useCallback(
     async (data: NovoPedido): Promise<string> => {
       if (!proprietarioId) throw new Error('Perfil de proprietário não encontrado.');
@@ -121,7 +121,7 @@ export function useOrders(filtro?: FiltroPedidos) {
     return toPedido(await apiPatch<PedidoApi>(`/pedidos/${id}/confirmar`));
   }, []);
 
-  /** Cancela e o backend restaura o estoque reservado. */
+  /** Cancela; o backend devolve o estoque se o pedido já estava confirmado. */
   const cancelOrder = useCallback(async (id: string): Promise<Pedido> => {
     return toPedido(await apiPatch<PedidoApi>(`/pedidos/${id}/cancelar`));
   }, []);

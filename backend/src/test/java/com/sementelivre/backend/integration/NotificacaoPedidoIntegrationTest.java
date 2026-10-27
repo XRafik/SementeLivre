@@ -52,7 +52,7 @@ class NotificacaoPedidoIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     @Transactional
-    void confirmarPedido_deveCriarNotificacaoNaoLidaSemNovaBaixa() {
+    void confirmarPedido_deveCriarNotificacaoNaoLidaEBaixarEstoque() {
         CrossDomainFixture.Scenario scenario = CrossDomainFixture.create(
                 entityManager, produtoRepository, estoqueService, ESTOQUE_INICIAL);
         PedidoResponseDTO criado = pedidoService.criar(

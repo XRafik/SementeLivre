@@ -71,11 +71,22 @@ public class NotificacaoService
         return resposta;
     }
 
-    public NotificacaoResponseDTO criarParaPedidoCancelado(Pedido pedido) {
+    // Pedido ainda na fila nao tinha baixado nada: so o CONFIRMADO devolve estoque (#183)
+    public NotificacaoResponseDTO criarParaPedidoCancelado(Pedido pedido, boolean devolveuEstoque) {
         NotificacaoResponseDTO resposta = criarParaPedido(pedido, "Pedido cancelado", "cancelado",
-                "O estoque reservado foi devolvido.");
+                devolveuEstoque ? "A quantidade voltou para o estoque." : null);
 
         avisarSolicitante(pedido, "Seu pedido foi cancelado", "cancelado");
+
+        return resposta;
+    }
+
+    // Recusa automatica da fila: outro pedido confirmado deixou o saldo menor que este
+    public NotificacaoResponseDTO criarParaPedidoRecusado(Pedido pedido) {
+        NotificacaoResponseDTO resposta = criarParaPedido(pedido, "Pedido recusado", "recusado",
+                "O estoque não cobre mais este pedido depois da confirmação de outro.");
+
+        avisarSolicitante(pedido, "Seu pedido foi recusado", "recusado");
 
         return resposta;
     }

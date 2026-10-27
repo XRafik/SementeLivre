@@ -167,11 +167,35 @@ class NotificacaoPedidoServiceTest {
     void notificacaoDoPedidoCanceladoDeveAvisarDevolucaoDoEstoque() {
         Pedido pedido = pedidoConfirmado();
 
-        Notificacao salva = notificacaoSalva(() -> notificacaoService.criarParaPedidoCancelado(pedido));
+        Notificacao salva = notificacaoSalva(() -> notificacaoService.criarParaPedidoCancelado(pedido, true));
 
         assertEquals("Pedido cancelado", salva.getTitulo());
         assertTrue(salva.getMensagem().startsWith("Pedido de TROCA cancelado."), salva.getMensagem());
-        assertTrue(salva.getMensagem().endsWith("O estoque reservado foi devolvido."), salva.getMensagem());
+        assertTrue(salva.getMensagem().endsWith("A quantidade voltou para o estoque."), salva.getMensagem());
+    }
+
+    @Test
+    void cancelamentoDePedidoNaFilaNaoFalaEmDevolucao() {
+        Pedido pedido = pedidoConfirmado();
+
+        Notificacao salva = notificacaoSalva(() -> notificacaoService.criarParaPedidoCancelado(pedido, false));
+
+        assertFalse(salva.getMensagem().contains("estoque"), salva.getMensagem());
+    }
+
+    @Test
+    void recusaDaFilaAvisaProdutorEQuemPediu() {
+        Pedido pedido = pedidoConfirmado();
+        Proprietario solicitante = solicitanteProprietario(pedido);
+
+        List<Notificacao> salvas = notificacoesSalvas(
+                () -> notificacaoService.criarParaPedidoRecusado(pedido), 2);
+
+        assertEquals("Pedido recusado", salvas.get(0).getTitulo());
+        assertTrue(salvas.get(0).getMensagem().startsWith("Pedido de TROCA recusado."), salvas.get(0).getMensagem());
+        assertTrue(salvas.get(0).getMensagem().endsWith("O estoque não cobre mais este pedido depois da confirmação de outro."));
+        assertEquals(solicitante, salvas.get(1).getProprietario());
+        assertEquals("Seu pedido foi recusado", salvas.get(1).getTitulo());
     }
 
     @Test
@@ -230,7 +254,7 @@ class NotificacaoPedidoServiceTest {
         Proprietario solicitante = solicitanteProprietario(pedido);
 
         List<Notificacao> salvas = notificacoesSalvas(
-                () -> notificacaoService.criarParaPedidoCancelado(pedido), 2);
+                () -> notificacaoService.criarParaPedidoCancelado(pedido, true), 2);
 
         assertEquals(solicitante, salvas.get(1).getProprietario());
         assertEquals("Seu pedido foi cancelado", salvas.get(1).getTitulo());
@@ -255,6 +279,6 @@ class NotificacaoPedidoServiceTest {
         Pedido pedido = pedidoConfirmado();
         when(pedido.getUsuarioSolicitante().getId()).thenReturn(proprietario.getId());
 
-        notificacoesSalvas(() -> notificacaoService.criarParaPedidoCancelado(pedido), 1);
+        notificacoesSalvas(() -> notificacaoService.criarParaPedidoCancelado(pedido, true), 1);
     }
 }

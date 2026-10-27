@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import com.sementelivre.backend.entity.Comprador;
 import com.sementelivre.backend.entity.Itens;
@@ -13,10 +15,11 @@ import com.sementelivre.backend.entity.Usuario;
 import com.sementelivre.backend.entity.enums.TipoPedido;
 
 /**
- * Cópia do pedido enviada por e-mail a quem fez o pedido.
+ * E-mail sobre o pedido para quem fez o pedido: a cópia no registro e o aviso
+ * de recusa da fila (#183).
  *
- * É montada dentro da transação que registra o pedido (as associações lazy
- * ainda estão acessíveis) e só é enviada depois do commit.
+ * É montado dentro da transação que mexe no pedido (as associações lazy
+ * ainda estão acessíveis) e só é enviado depois do commit.
  */
 public record CopiaDoPedidoEmail(String para, String assunto, String texto) {
 
@@ -32,27 +35,74 @@ public record CopiaDoPedidoEmail(String para, String assunto, String texto) {
      * há para quem mandar.
      */
     public static Optional<CopiaDoPedidoEmail> de(Pedido pedido) {
+        return destinatario(pedido).map(quem -> new CopiaDoPedidoEmail(
+                quem.email(),
+                "Semente Livre - Cópia do seu pedido",
+                montarTexto(pedido, quem.nome())));
+    }
+
+    /**
+     * Aviso de que o pedido saiu da fila sem ser atendido: o produtor aceitou
+     * outro pedido e o saldo que sobrou não cobre este. {@code saldoPorProduto}
+     * é o estoque que ficou, para quem pediu saber quanto ainda há.
+     */
+    public static Optional<CopiaDoPedidoEmail> avisoDeRecusa(Pedido pedido, Map<UUID, Double> saldoPorProduto) {
+        return destinatario(pedido).map(quem -> new CopiaDoPedidoEmail(
+                quem.email(),
+                "Semente Livre - Seu pedido foi recusado",
+                montarTextoDeRecusa(pedido, quem.nome(), saldoPorProduto)));
+    }
+
+    private record Destinatario(String email, String nome) {
+    }
+
+    private static Optional<Destinatario> destinatario(Pedido pedido) {
 
         Comprador comprador = pedido.getComprador();
         Usuario solicitante = pedido.getUsuarioSolicitante();
 
-        String para;
-        String nome;
-
         if (comprador != null && temTexto(comprador.getEmail())) {
-            para = comprador.getEmail();
-            nome = comprador.getNome();
-        } else if (solicitante != null && temTexto(solicitante.getEmail())) {
-            para = solicitante.getEmail();
-            nome = solicitante.getNome();
-        } else {
-            return Optional.empty();
+            return Optional.of(new Destinatario(comprador.getEmail(), comprador.getNome()));
+        }
+        if (solicitante != null && temTexto(solicitante.getEmail())) {
+            return Optional.of(new Destinatario(solicitante.getEmail(), solicitante.getNome()));
+        }
+        return Optional.empty();
+    }
+
+    private static String montarTextoDeRecusa(Pedido pedido, String nome, Map<UUID, Double> saldoPorProduto) {
+
+        StringBuilder texto = new StringBuilder();
+
+        texto.append("Olá, ").append(nome).append("!\n\n")
+                .append("Infelizmente o seu pedido não pôde ser atendido. O produtor aceitou outro ")
+                .append("pedido antes do seu e o estoque que sobrou não cobre a quantidade que você pediu.\n\n")
+                .append("Pedido: ").append(pedido.getId()).append('\n')
+                .append("Data: ").append(pedido.getDataPedido().format(DATA)).append('\n');
+
+        String produtor = pedido.getProprietarioRecebedor() != null
+                ? pedido.getProprietarioRecebedor().getNome()
+                : null;
+        if (temTexto(produtor)) {
+            texto.append("Produtor: ").append(produtor).append('\n');
         }
 
-        return Optional.of(new CopiaDoPedidoEmail(
-                para,
-                "Semente Livre - Cópia do seu pedido",
-                montarTexto(pedido, nome)));
+        texto.append("\nVocê pediu:\n");
+        for (Itens item : pedido.getItens()) {
+            texto.append("- ").append(formatarQuantidade(item.getQuantidade()))
+                    .append(" x ").append(item.getProduto().getNomePopular());
+
+            Double sobrou = saldoPorProduto.get(item.getProduto().getId());
+            if (sobrou != null) {
+                texto.append(" (disponível agora: ").append(formatarQuantidade(sobrou)).append(')');
+            }
+            texto.append('\n');
+        }
+
+        texto.append("\nSe ainda tiver interesse, faça um novo pedido com a quantidade disponível.\n\n")
+                .append("Semente Livre");
+
+        return texto.toString();
     }
 
     private static String montarTexto(Pedido pedido, String nome) {

@@ -2,6 +2,7 @@ package com.sementelivre.backend.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -29,11 +30,13 @@ import com.sementelivre.backend.BackendApplication;
 import com.sementelivre.backend.dto.PedidoPublicoRequestDTO;
 import com.sementelivre.backend.entity.Estoque;
 import com.sementelivre.backend.entity.Pedido;
+import com.sementelivre.backend.entity.enums.StatusPedido;
 import com.sementelivre.backend.entity.enums.TipoPedido;
 import com.sementelivre.backend.repository.EstoqueRepository;
 import com.sementelivre.backend.repository.PedidoRepository;
 import com.sementelivre.backend.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.EstoqueInsuficienteException;
+import com.sementelivre.backend.exception.TransicaoStatusInvalidaException;
 import com.sementelivre.backend.service.EstoqueService;
 import com.sementelivre.backend.service.PedidoService;
 
@@ -100,7 +103,8 @@ class PedidoPublicoIntegrationTest extends AbstractPostgresIntegrationTest {
                 assertEquals(TipoPedido.VENDA, pedido.getTipoPedido());
                 assertEquals("ana@exemplo.com", pedido.getComprador().getEmail());
                 assertEquals(10.0, pedido.getItens().get(0).getPrecoUnitario());
-                assertEquals(97.0, estoque(scenario).getQuantidade());
+                // Entrou na fila: o estoque so baixa quando o produtor confirmar (#183)
+                assertEquals(100.0, estoque(scenario).getQuantidade());
             });
         } finally {
             // O pedido foi commitado no banco compartilhado; outros testes contam pedidos
@@ -136,11 +140,12 @@ class PedidoPublicoIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     /**
-     * Pedidos simultâneos na mesma oferta não podem vender mais do que há em
-     * estoque: cada um precisa ler o saldo depois de travar a linha.
+     * Fila (#183): pedidos simultâneos entram todos, sem baixar estoque. As
+     * confirmações simultâneas é que não podem vender mais do que há: cada uma
+     * trava o estoque antes do pedido, e quem não couber é recusado.
      */
     @Test
-    void pedidosSimultaneosNaoPodemPassarDoEstoque() throws Exception {
+    void pedidosSimultaneosEntramNaFilaEAsConfirmacoesNaoPassamDoEstoque() throws Exception {
         CrossDomainFixture.Scenario scenario = cenarioComEstoque(3.0);
         UUID estoqueId = estoque(scenario).getId();
 
@@ -167,10 +172,37 @@ class PedidoPublicoIntegrationTest extends AbstractPostgresIntegrationTest {
         pool.awaitTermination(30, TimeUnit.SECONDS);
 
         try {
-            assertEquals(3, aceitos.size());
-            assertEquals(3, recusados.size());
-            recusados.forEach(e -> assertEquals(EstoqueInsuficienteException.class, e.getClass()));
+            assertEquals(pedidos, aceitos.size(), () -> "recusados: " + recusados);
+            assertEquals(3.0, estoque(scenario).getQuantidade());
+
+            ExecutorService confirmacoes = Executors.newFixedThreadPool(pedidos);
+            CountDownLatch juntos = new CountDownLatch(1);
+            ConcurrentLinkedQueue<UUID> confirmados = new ConcurrentLinkedQueue<>();
+            ConcurrentLinkedQueue<Throwable> barrados = new ConcurrentLinkedQueue<>();
+            for (UUID pedidoId : aceitos) {
+                confirmacoes.submit(() -> {
+                    juntos.await();
+                    try {
+                        pedidoService.confirmar(pedidoId);
+                        confirmados.add(pedidoId);
+                    } catch (Throwable e) {
+                        barrados.add(e);
+                    }
+                    return null;
+                });
+            }
+            juntos.countDown();
+            confirmacoes.shutdown();
+            confirmacoes.awaitTermination(30, TimeUnit.SECONDS);
+
+            assertEquals(3, confirmados.size(), () -> "barrados: " + barrados);
+            // Os outros já tinham sido recusados pela fila quando chegou a vez deles
+            barrados.forEach(e -> assertTrue(e instanceof TransicaoStatusInvalidaException
+                    || e instanceof EstoqueInsuficienteException, e.toString()));
             assertEquals(0.0, estoque(scenario).getQuantidade());
+            assertEquals(3, aceitos.stream()
+                    .filter(id -> pedidoRepository.findById(id).orElseThrow().getStatus() == StatusPedido.CANCELADO)
+                    .count());
         } finally {
             List.copyOf(aceitos).forEach(pedidoService::excluir);
         }

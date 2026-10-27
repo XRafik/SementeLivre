@@ -1,12 +1,16 @@
+import { request } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { criarOferta } from '../../support/api';
+import { API_URL, criarOferta, Produtor } from '../../support/api';
 import { registrarPedido } from '../../support/fluxos';
 
 /** Histórico de estoque (TELA 09): tem que bater com o saldo a cada mudança (#185). */
 test.describe('Movimentações de estoque (front-app)', () => {
-  test('pedido registrado aparece no histórico como saída', async ({ appLogado: page, produtor }) => {
+  test('pedido confirmado aparece no histórico como saída', async ({ appLogado: page, produtor }) => {
     const oferta = await criarOferta(produtor, { quantidade: 50 });
     await registrarPedido(page, oferta, 10, 'Comprador Historico');
+    // Na fila o estoque não muda (#183); a saída nasce na confirmação
+    await page.getByRole('button', { name: 'Confirmar Pedido' }).click();
+    await expect(page.getByText('Confirmado', { exact: true })).toBeVisible();
 
     await page.goto(`/sementes/${oferta.estoqueId}/estoque`);
     const linhas = page.getByRole('listitem');
@@ -17,14 +21,14 @@ test.describe('Movimentações de estoque (front-app)', () => {
     await expect(linhas.first()).toContainText('Pedido de Comprador Historico');
   });
 
-  test('cancelar o pedido devolve no histórico', async ({ appLogado: page, produtor }) => {
+  test('cancelar o pedido confirmado devolve no histórico', async ({ appLogado: page, produtor }) => {
     const oferta = await criarOferta(produtor, { quantidade: 50 });
     const idPedido = await registrarPedido(page, oferta, 10, 'Comprador Devolucao');
+    await page.getByRole('button', { name: 'Confirmar Pedido' }).click();
+    await expect(page.getByText('Confirmado', { exact: true })).toBeVisible();
 
-    await page.goto(`/pedidos/${idPedido}`);
-    await page.getByRole('button', { name: 'Cancelar Pedido' }).click();
-    await page.getByRole('dialog', { name: 'Cancelar Pedido' }).getByRole('button', { name: 'Cancelar Pedido' }).click();
-    await expect(page.getByText('Cancelado').first()).toBeVisible();
+    // O app só cancela pendentes; o confirmado é cancelado pela API
+    await cancelarPelaApi(produtor, idPedido);
 
     await page.goto(`/sementes/${oferta.estoqueId}/estoque`);
     const primeira = page.getByRole('listitem').first();
@@ -60,3 +64,13 @@ test.describe('Movimentações de estoque (front-app)', () => {
     await expect(primeira).toContainText('Ajuste manual de quantidade');
   });
 });
+
+async function cancelarPelaApi(produtor: Produtor, idPedido: string) {
+  const api = await request.newContext({
+    baseURL: API_URL,
+    extraHTTPHeaders: { Authorization: `Bearer ${produtor.accessToken}` },
+  });
+  const res = await api.patch(`/pedidos/${idPedido}/cancelar`);
+  expect(res.ok(), await res.text()).toBeTruthy();
+  await api.dispose();
+}

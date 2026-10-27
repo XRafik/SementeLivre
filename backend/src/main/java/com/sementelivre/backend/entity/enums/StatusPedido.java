@@ -7,12 +7,12 @@ import java.util.Set;
  * transicionar, de modo que a regra de transicao fique junto do proprio enum
  * em vez de espalhada pelo service.
  *
- * O estoque e reservado (baixado) quando o pedido e registrado, ja PENDENTE:
+ * O pedido PENDENTE esta na fila e nao mexe no estoque (#183):
  *
- * PENDENTE --> CONFIRMADO (so muda o status, o estoque ja foi baixado)
- * PENDENTE --> CANCELADO  (restaura o estoque reservado no registro)
- * CONFIRMADO --> CANCELADO (restaura o estoque reservado no registro)
- * CANCELADO --> (estado final; por isso a restauracao acontece uma vez so)
+ * PENDENTE --> CONFIRMADO (baixa o estoque; recusa os pendentes que nao cabem mais)
+ * PENDENTE --> CANCELADO  (cancelado pelo produtor ou recusado pela fila; nada a devolver)
+ * CONFIRMADO --> CANCELADO (devolve o que foi baixado na confirmacao)
+ * CANCELADO --> (estado final; por isso a devolucao acontece uma vez so)
  */
 public enum StatusPedido {
 

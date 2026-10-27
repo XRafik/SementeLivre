@@ -42,7 +42,7 @@ export default function PedidoDetailPage() {
     setActing(true);
     try {
       setOrder(await cancelOrder(id));
-      showToast('Pedido cancelado. Estoque restaurado.', 'success');
+      showToast('Pedido cancelado e retirado da fila.', 'success');
       setShowCancel(false);
       // O cancelamento tambem gera notificacao no backend (CDU-26)
       refreshNotifications();
@@ -54,7 +54,7 @@ export default function PedidoDetailPage() {
     setActing(true);
     try {
       setOrder(await confirmOrder(id));
-      showToast('Pedido confirmado!', 'success');
+      showToast('Pedido confirmado! O estoque foi atualizado.', 'success');
       // A confirmacao gera uma notificacao no backend (CDU-26)
       refreshNotifications();
     } catch (err) { showToast(errorMessage(err, 'Erro ao confirmar.'), 'error'); }
@@ -98,16 +98,22 @@ export default function PedidoDetailPage() {
       )}
 
       {order.status === StatusPedido.PENDENTE && (
-        <div className={styles.actions}>
-          <Button variant="ghost" fullWidth onClick={() => setShowCancel(true)}>Cancelar Pedido</Button>
-          <Button variant="primary" fullWidth onClick={handleConfirm} loading={acting}>Confirmar Pedido</Button>
-        </div>
+        <>
+          <p className={styles.obs} role="note">
+            Pedido na fila: o estoque só é baixado quando você confirmar. Pedidos que não couberem
+            no que sobrar são recusados e quem pediu é avisado.
+          </p>
+          <div className={styles.actions}>
+            <Button variant="ghost" fullWidth onClick={() => setShowCancel(true)}>Cancelar Pedido</Button>
+            <Button variant="primary" fullWidth onClick={handleConfirm} loading={acting}>Confirmar Pedido</Button>
+          </div>
+        </>
       )}
 
       <ConfirmDialog
         isOpen={showCancel}
         title="Cancelar Pedido"
-        description="O estoque das sementes será restaurado. Confirmar cancelamento?"
+        description="O pedido sai da fila e o estoque não muda. Confirmar cancelamento?"
         confirmLabel="Cancelar Pedido"
         confirmVariant="danger"
         onConfirm={handleCancel}

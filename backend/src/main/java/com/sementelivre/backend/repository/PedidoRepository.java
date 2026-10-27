@@ -1,5 +1,6 @@
 package com.sementelivre.backend.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -10,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.sementelivre.backend.entity.Pedido;
+import com.sementelivre.backend.entity.enums.StatusPedido;
 
 import jakarta.persistence.LockModeType;
 
@@ -59,6 +61,35 @@ public interface PedidoRepository extends BaseRepository<Pedido, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Pedido p where p.id = :id")
     Optional<Pedido> findParaAtualizacao(@Param("id") UUID id);
+
+    // Consultas escalares da confirmacao (#183): descobrem o que travar sem
+    // carregar a entidade Pedido antes do findParaAtualizacao
+
+    @Query("select p.proprietarioRecebedor.id from Pedido p where p.id = :id")
+    Optional<UUID> findProprietarioRecebedorId(@Param("id") UUID id);
+
+    @Query("select distinct i.produto.id from Itens i where i.pedido.id = :pedidoId")
+    List<UUID> findProdutoIdsDoPedido(@Param("pedidoId") UUID pedidoId);
+
+    /** Pedidos PENDENTE do proprietario com algum dos produtos, na ordem de chegada. */
+    default List<UUID> findIdsNaFila(UUID proprietarioId, Collection<UUID> produtoIds, UUID excetoId) {
+        return findIdsPorStatusComProdutos(proprietarioId, StatusPedido.PENDENTE, produtoIds, excetoId);
+    }
+
+    // O status vai como parametro: o literal do enum no JPQL vira cast para um tipo que o banco nao tem
+    @Query("""
+            select p.id from Pedido p
+            where p.proprietarioRecebedor.id = :proprietarioId
+              and p.status = :status
+              and p.id <> :excetoId
+              and exists (select 1 from Itens i where i.pedido = p and i.produto.id in :produtoIds)
+            order by p.dataPedido asc
+            """)
+    List<UUID> findIdsPorStatusComProdutos(
+            @Param("proprietarioId") UUID proprietarioId,
+            @Param("status") StatusPedido status,
+            @Param("produtoIds") Collection<UUID> produtoIds,
+            @Param("excetoId") UUID excetoId);
 
     /**
      * Exclui os pedidos em que a pessoa é solicitante ou recebedora. Os itens

@@ -4,14 +4,15 @@ import { registrarPedido } from '../../support/fluxos';
 
 /** CDU de pedido: registrar, confirmar e cancelar no front-app. */
 test.describe('Pedidos (front-app)', () => {
-  test('registrar pedido reserva o estoque e aparece como pendente', async ({ appLogado: page, produtor }) => {
+  test('registrar pedido entra na fila sem baixar o estoque (#183)', async ({ appLogado: page, produtor }) => {
     const oferta = await criarOferta(produtor, { quantidade: 40 });
     const id = await registrarPedido(page, oferta, 5, 'Maria Recebedora');
 
     await expect(page.getByText('Maria Recebedora')).toBeVisible();
     await expect(page.getByText('Pendente')).toBeVisible();
     await expect(page.getByText('Total: R$ 62.50')).toBeVisible();
-    expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(35);
+    await expect(page.getByRole('note')).toContainText('o estoque só é baixado quando você confirmar');
+    expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(40);
 
     await page.getByRole('tab', { name: 'Pedidos' }).click();
     await expect(page.getByText('Maria Recebedora')).toBeVisible();
@@ -31,18 +32,53 @@ test.describe('Pedidos (front-app)', () => {
     expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(8);
   });
 
-  test('cancelar pedido devolve a quantidade ao estoque', async ({ appLogado: page, produtor }) => {
+  test('cancelar pedido da fila não mexe no estoque', async ({ appLogado: page, produtor }) => {
     const oferta = await criarOferta(produtor, { quantidade: 10 });
     const id = await registrarPedido(page, oferta, 4, 'Ana Cancelada');
-    expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(6);
+    expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(10);
 
     await page.getByRole('button', { name: 'Cancelar Pedido' }).click();
     await page.getByRole('dialog', { name: 'Cancelar Pedido' }).getByRole('button', { name: 'Cancelar Pedido' }).click();
 
-    await expect(toast(page, 'Pedido cancelado. Estoque restaurado.')).toBeVisible();
+    await expect(toast(page, 'Pedido cancelado e retirado da fila.')).toBeVisible();
     await expect(page.getByText('Cancelado', { exact: true })).toBeVisible();
     expect((await listarPedidos(produtor)).find((p) => p.id === id)?.status).toBe('CANCELADO');
     expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(10);
+  });
+
+  test('confirmar o pedido que esgota o estoque recusa quem não cabe mais (#183)', async ({ appLogado: page, produtor }) => {
+    const oferta = await criarOferta(produtor, { quantidade: 50 });
+    const grande = await registrarPedido(page, oferta, 49, 'Pedido Grande');
+    const pequeno = await registrarPedido(page, oferta, 10, 'Pedido Pequeno');
+    expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(50);
+
+    await page.goto(`/pedidos/${grande}`);
+    await page.getByRole('button', { name: 'Confirmar Pedido' }).click();
+    await expect(toast(page, 'Pedido confirmado! O estoque foi atualizado.')).toBeVisible();
+
+    // Sobrou 1 kg: o pedido de 10 sai da fila e a vitrine passa a mostrar 1
+    expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(1);
+    expect((await listarPedidos(produtor)).find((p) => p.id === pequeno)?.status).toBe('CANCELADO');
+
+    await page.goto(`/pedidos/${pequeno}`);
+    await expect(page.getByText('Cancelado', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Confirmar Pedido' })).toHaveCount(0);
+
+    await page.goto('/notificacoes');
+    await expect(page.getByRole('button', { name: /^Pedido recusado/ })).toBeVisible();
+  });
+
+  test('confirmar mantém na fila quem ainda cabe (#183)', async ({ appLogado: page, produtor }) => {
+    const oferta = await criarOferta(produtor, { quantidade: 50 });
+    const grande = await registrarPedido(page, oferta, 40, 'Pedido Quarenta');
+    const pequeno = await registrarPedido(page, oferta, 10, 'Pedido Dez');
+
+    await page.goto(`/pedidos/${grande}`);
+    await page.getByRole('button', { name: 'Confirmar Pedido' }).click();
+    await expect(toast(page, 'Pedido confirmado! O estoque foi atualizado.')).toBeVisible();
+
+    expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(10);
+    expect((await listarPedidos(produtor)).find((p) => p.id === pequeno)?.status).toBe('PENDENTE');
   });
 
   test('pedido sem recebedor e sem itens não é enviado', async ({ appLogado: page }) => {

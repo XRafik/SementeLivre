@@ -56,7 +56,7 @@ test.describe('Catálogo público (front-site)', () => {
     await expect(page.getByText('Fazer pedido', { exact: true })).toBeVisible();
   });
 
-  test('pedido público chega ao produtor com o estoque reservado', async ({ page }) => {
+  test('pedido público chega ao produtor na fila, sem baixar o estoque (#183)', async ({ page }) => {
     const produtor = await criarProdutor();
     const oferta = await criarOferta(produtor, { nomePopular: `Milho Pedido ${unico()}`, quantidade: 20 });
     const cliente = `Cliente Site ${unico()}`;
@@ -74,7 +74,7 @@ test.describe('Catálogo público (front-site)', () => {
     const pedidos = await listarPedidos(produtor);
     expect(pedidos).toHaveLength(1);
     expect(pedidos[0]).toMatchObject({ status: 'PENDENTE', tipoPedido: 'VENDA' });
-    expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(17);
+    expect((await buscarEstoque(produtor, oferta.estoqueId)).quantidade).toBe(20);
   });
 
   test('oferta sem negociação trava o tipo do pedido', async ({ page }) => {
