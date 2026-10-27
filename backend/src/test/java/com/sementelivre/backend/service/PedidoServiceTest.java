@@ -550,6 +550,33 @@ class PedidoServiceTest {
     }
 
     @Test
+    void confirmacaoMandaEmailComOWhatsAppDoProdutor() {
+        proprietario.setNome("Dona Rosa");
+        proprietario.setTelefone("(32) 99999-0000");
+        Pedido pedido = pedidoPendente();
+        pedido.setComprador(Comprador.builder().nome("Bia").email("bia@exemplo.com").build());
+        mockConfirmacao();
+        mockBuscaPedido(pedido);
+        mockSalvarPedido();
+
+        pedidoService.confirmar(pedidoId);
+
+        CopiaDoPedidoEmail aviso = emailComAssunto("Semente Livre - Seu pedido foi confirmado");
+        assertEquals("bia@exemplo.com", aviso.para());
+        assertTrue(aviso.texto().contains("https://wa.me/5532999990000?text="), aviso.texto());
+    }
+
+    @Test
+    void confirmacaoQueFalhaNaoMandaEmail() {
+        mockConfirmacao();
+        mockBuscaPedido(pedidoComStatus(StatusPedido.CONFIRMADO));
+
+        assertThrows(TransicaoStatusInvalidaException.class, () -> pedidoService.confirmar(pedidoId));
+
+        verify(eventos, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
     void naoDeveConfirmarQuandoOEstoqueNaoCobreMais() {
         // O produtor tirou do estoque depois que o pedido entrou na fila
         estoque.setQuantidade(3.0);
@@ -603,9 +630,8 @@ class PedidoServiceTest {
         assertEquals(StatusPedido.CANCELADO, pequeno.getStatus());
         verify(notificacaoService).criarParaPedidoRecusado(pequeno);
 
-        CopiaDoPedidoEmail aviso = copiaPublicada();
+        CopiaDoPedidoEmail aviso = emailComAssunto("Semente Livre - Seu pedido foi recusado");
         assertEquals("bia@exemplo.com", aviso.para());
-        assertEquals("Semente Livre - Seu pedido foi recusado", aviso.assunto());
         assertTrue(aviso.texto().contains("10 x Milho crioulo (disponível agora: 1)"), aviso.texto());
     }
 
@@ -628,7 +654,8 @@ class PedidoServiceTest {
         assertEquals(10.0, estoque.getQuantidade());
         assertEquals(StatusPedido.PENDENTE, pequeno.getStatus());
         verify(notificacaoService, never()).criarParaPedidoRecusado(any(Pedido.class));
-        verify(eventos, never()).publishEvent(any(Object.class));
+        assertTrue(emailsPublicados().stream()
+                .noneMatch(email -> email.assunto().contains("recusado")));
     }
 
     @Test
@@ -946,6 +973,19 @@ class PedidoServiceTest {
     private PedidoPublicoRequestDTO requestPublico() {
         return new PedidoPublicoRequestDTO(
                 estoque.getId(), QUANTIDADE_PEDIDA, " Ana Souza ", "ana@exemplo.com", "  ", "");
+    }
+
+    private List<CopiaDoPedidoEmail> emailsPublicados() {
+        ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
+        verify(eventos, org.mockito.Mockito.atLeast(0)).publishEvent(evento.capture());
+        return evento.getAllValues().stream().map(CopiaDoPedidoEmail.class::cast).toList();
+    }
+
+    private CopiaDoPedidoEmail emailComAssunto(String assunto) {
+        return emailsPublicados().stream()
+                .filter(email -> email.assunto().equals(assunto))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Nenhum e-mail \"" + assunto + "\": " + emailsPublicados()));
     }
 
     private CopiaDoPedidoEmail copiaPublicada() {

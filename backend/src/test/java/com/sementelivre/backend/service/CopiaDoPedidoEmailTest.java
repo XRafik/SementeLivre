@@ -72,6 +72,55 @@ class CopiaDoPedidoEmailTest {
         assertTrue(copia.texto().contains("Olá, João!"), copia.texto());
     }
 
+    // CONFIRMAÇÃO COM WHATSAPP (#184)
+
+    @Test
+    void confirmacaoTrazOWhatsAppDoProdutor() {
+        pedido.getProprietarioRecebedor().setTelefone("(32) 99999-0000");
+        pedido.setComprador(Comprador.builder().nome("Ana Souza").email("ana@exemplo.com").build());
+
+        CopiaDoPedidoEmail aviso = CopiaDoPedidoEmail.avisoDeConfirmacao(pedido).orElseThrow();
+        String texto = aviso.texto();
+
+        assertEquals("ana@exemplo.com", aviso.para());
+        assertEquals("Semente Livre - Seu pedido foi confirmado", aviso.assunto());
+        assertTrue(texto.contains("Olá, Ana Souza!"), texto);
+        assertTrue(texto.contains("Dona Rosa confirmou o seu pedido"), texto);
+        assertTrue(texto.contains("- 2 x Feijão Crioulo"), texto);
+        assertTrue(texto.contains("https://wa.me/5532999990000?text=Ol%C3%A1%2C%20Dona%20Rosa%21"), texto);
+    }
+
+    @Test
+    void produtorSemTelefoneDeixaOEmailComoContato() {
+        pedido.getProprietarioRecebedor().setEmail("rosa@exemplo.com");
+        pedido.setComprador(Comprador.builder().nome("Ana Souza").email("ana@exemplo.com").build());
+
+        String texto = CopiaDoPedidoEmail.avisoDeConfirmacao(pedido).orElseThrow().texto();
+
+        assertFalse(texto.contains("wa.me"), texto);
+        assertTrue(texto.contains("pelo e-mail:\nrosa@exemplo.com"), texto);
+    }
+
+    @Test
+    void pedidoLancadoPeloProprioProdutorNaoGeraAviso() {
+        pedido.getProprietarioRecebedor().setEmail("rosa@exemplo.com");
+        pedido.setComprador(Comprador.builder().nome("Associação").build());
+        pedido.setUsuarioSolicitante(usuario("Dona Rosa", "Rosa@Exemplo.com"));
+
+        assertTrue(CopiaDoPedidoEmail.avisoDeConfirmacao(pedido).isEmpty());
+    }
+
+    @Test
+    void linkDoWhatsAppNormalizaOTelefone() {
+        assertEquals("https://wa.me/5532999990000?text=oi", CopiaDoPedidoEmail.linkWhatsApp("(32) 99999-0000", "oi").orElseThrow());
+        assertEquals("https://wa.me/553233330000?text=oi", CopiaDoPedidoEmail.linkWhatsApp("32 3333-0000", "oi").orElseThrow());
+        assertEquals("https://wa.me/5532999990000?text=oi", CopiaDoPedidoEmail.linkWhatsApp("+55 32 99999-0000", "oi").orElseThrow());
+        assertEquals("https://wa.me/5532999990000?text=oi", CopiaDoPedidoEmail.linkWhatsApp("032 99999-0000", "oi").orElseThrow());
+        assertTrue(CopiaDoPedidoEmail.linkWhatsApp("99999-0000", "oi").isEmpty());
+        assertTrue(CopiaDoPedidoEmail.linkWhatsApp("  ", "oi").isEmpty());
+        assertTrue(CopiaDoPedidoEmail.linkWhatsApp(null, "oi").isEmpty());
+    }
+
     @Test
     void semNenhumEmailNaoHaCopia() {
         pedido.setComprador(Comprador.builder().nome("Associação").build());

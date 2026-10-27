@@ -252,6 +252,8 @@ public class PedidoService {
         pedido.setStatus(StatusPedido.CONFIRMADO);
         Pedido confirmado = pedidoRepository.save(pedido);
         notificacaoService.criarParaPedidoConfirmado(confirmado);
+        // E-mail com o WhatsApp do produtor para combinarem a entrega (#184)
+        CopiaDoPedidoEmail.avisoDeConfirmacao(confirmado).ifPresent(eventos::publishEvent);
 
         recusarPedidosQueNaoCabemMais(confirmado);
 
