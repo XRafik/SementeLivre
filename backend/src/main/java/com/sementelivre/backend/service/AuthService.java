@@ -4,6 +4,7 @@ import com.sementelivre.backend.dto.*;
 import com.sementelivre.backend.entity.*;
 import com.sementelivre.backend.exception.SenhaAtualIncorretaException;
 import com.sementelivre.backend.repository.*;
+import com.sementelivre.backend.security.HashDeToken;
 import com.sementelivre.backend.security.JwtService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,6 +29,11 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final EmailService emailService;
+
+    // Uma mensagem só por tipo de token: dizer "não encontrado" ou "expirado" contava
+    // a quem tenta adivinhar se aquele token existe (#204)
+    static final String REFRESH_INVALIDO = "Sessão inválida ou expirada. Faça login novamente.";
+    static final String RECUPERACAO_INVALIDA = "Link de recuperação inválido ou expirado. Peça um novo.";
 
     @Value("${jwt.refresh-expiration-days:7}")
     private Long refreshExpirationDays;
@@ -80,18 +86,18 @@ public class AuthService {
         Usuario usuario = (Usuario) authentication.getPrincipal();
 
         String accessToken = jwtService.gerarToken(usuario);
-        RefreshToken refreshToken = criarRefreshToken(usuario);
+        String refreshToken = criarRefreshToken(usuario);
 
-        return new TokenResponseDTO(accessToken, refreshToken.getToken(), 1800L);
+        return new TokenResponseDTO(accessToken, refreshToken, 1800L);
     }
 
     @Transactional
     public TokenResponseDTO refreshToken(RefreshTokenRequestDTO dto) {
-        RefreshToken tokenSalvo = refreshTokenRepository.findByToken(dto.refreshToken())
-                .orElseThrow(() -> new IllegalArgumentException("Refresh token não encontrado."));
+        RefreshToken tokenSalvo = refreshTokenRepository.findByToken(HashDeToken.sha256(dto.refreshToken()))
+                .orElseThrow(() -> new IllegalArgumentException(REFRESH_INVALIDO));
 
         if (tokenSalvo.getRevogado() || tokenSalvo.getDataExpiracao().isBefore(Instant.now())) {
-            throw new IllegalArgumentException("Refresh token expirado ou revogado.");
+            throw new IllegalArgumentException(REFRESH_INVALIDO);
         }
 
         Usuario usuario = tokenSalvo.getUsuario();
@@ -102,9 +108,9 @@ public class AuthService {
 
         // Gera novo par de tokens
         String novoAccessToken = jwtService.gerarToken(usuario);
-        RefreshToken novoRefreshToken = criarRefreshToken(usuario);
+        String novoRefreshToken = criarRefreshToken(usuario);
 
-        return new TokenResponseDTO(novoAccessToken, novoRefreshToken.getToken(), 1800L);
+        return new TokenResponseDTO(novoAccessToken, novoRefreshToken, 1800L);
     }
 
     @Transactional
@@ -118,7 +124,7 @@ public class AuthService {
         String token = UUID.randomUUID().toString();
 
         TokenRecuperacaoSenha tokenEntity = TokenRecuperacaoSenha.builder()
-                .token(token)
+                .token(HashDeToken.sha256(token))
                 .usuario(usuario)
                 .dataExpiracao(Instant.now().plus(15, ChronoUnit.MINUTES))
                 .usado(false)
@@ -130,11 +136,11 @@ public class AuthService {
 
     @Transactional
     public void redefinirSenha(RedefinirSenhaDTO dto) {
-        TokenRecuperacaoSenha tokenEntity = tokenRecuperacaoRepository.findByToken(dto.token())
-                .orElseThrow(() -> new IllegalArgumentException("Token de recuperação inválido."));
+        TokenRecuperacaoSenha tokenEntity = tokenRecuperacaoRepository.findByToken(HashDeToken.sha256(dto.token()))
+                .orElseThrow(() -> new IllegalArgumentException(RECUPERACAO_INVALIDA));
 
         if (tokenEntity.getUsado() || tokenEntity.getDataExpiracao().isBefore(Instant.now())) {
-            throw new IllegalArgumentException("Token de recuperação expirado ou já utilizado.");
+            throw new IllegalArgumentException(RECUPERACAO_INVALIDA);
         }
 
         Usuario usuario = tokenEntity.getUsuario();
@@ -145,16 +151,20 @@ public class AuthService {
         tokenRecuperacaoRepository.save(tokenEntity);
     }
 
-    private RefreshToken criarRefreshToken(Usuario usuario) {
+    /** Grava o hash do token novo e devolve o token, que só o cliente fica sabendo. */
+    private String criarRefreshToken(Usuario usuario) {
         refreshTokenRepository.deleteByUsuario(usuario);
+
+        String token = UUID.randomUUID().toString();
 
         RefreshToken refreshToken = RefreshToken.builder()
                 .usuario(usuario)
-                .token(UUID.randomUUID().toString())
+                .token(HashDeToken.sha256(token))
                 .dataExpiracao(Instant.now().plus(refreshExpirationDays, ChronoUnit.DAYS))
                 .revogado(false)
                 .build();
 
-        return refreshTokenRepository.save(refreshToken);
+        refreshTokenRepository.save(refreshToken);
+        return token;
     }
 }

@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.ResultActions;
 
 import com.jayway.jsonpath.JsonPath;
+import com.sementelivre.backend.security.HashDeToken;
 import com.sementelivre.backend.security.JwtService;
 
 import io.jsonwebtoken.Claims;
@@ -27,6 +28,8 @@ import io.jsonwebtoken.Claims;
 class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
 
     private static final String MENSAGEM_RECUPERACAO = "Se o e-mail estiver cadastrado, as instruções foram enviadas.";
+    private static final String REFRESH_INVALIDO = "Sessão inválida ou expirada. Faça login novamente.";
+    private static final String RECUPERACAO_INVALIDA = "Link de recuperação inválido ou expirado. Peça um novo.";
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -52,11 +55,19 @@ class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
                 .content("{\"token\":\"%s\",\"novaSenha\":\"%s\"}".formatted(codigo, novaSenha)));
     }
 
-    /** O codigo vai por e-mail; nos testes (sem SMTP) ele e lido direto do banco. */
+    /**
+     * O codigo vai por e-mail e o banco so guarda o hash dele (#206). Nos testes
+     * (sem SMTP) o ultimo token da conta passa a ser o hash de um codigo conhecido.
+     */
     private String ultimoCodigoDeRecuperacao(Conta conta) {
-        return jdbcTemplate.queryForObject(
-                "SELECT token FROM token_recuperacao_senha_t WHERE usuario_id = ? ORDER BY data_expiracao DESC LIMIT 1",
-                String.class, UUID.fromString(conta.id()));
+        String codigo = "codigo-" + UUID.randomUUID();
+        int trocados = jdbcTemplate.update("""
+                UPDATE token_recuperacao_senha_t SET token = ?
+                WHERE id = (SELECT id FROM token_recuperacao_senha_t WHERE usuario_id = ?
+                            ORDER BY data_expiracao DESC LIMIT 1)
+                """, HashDeToken.sha256(codigo), UUID.fromString(conta.id()));
+        assertThat(trocados).isEqualTo(1);
+        return codigo;
     }
 
     // ── refresh ──────────────────────────────────────────────────────────────
@@ -80,14 +91,57 @@ class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
     }
 
     @Test
+    void bancoDeveGuardarSoOHashDoRefreshToken() throws Exception {
+        Conta conta = cadastrar();
+        Tokens login = loginTokens(conta.email(), SENHA);
+
+        String salvo = jdbcTemplate.queryForObject(
+                "SELECT token FROM refresh_token_t WHERE usuario_id = ?", String.class, UUID.fromString(conta.id()));
+
+        assertThat(salvo).isNotEqualTo(login.refreshToken());
+        assertThat(salvo).isEqualTo(HashDeToken.sha256(login.refreshToken()));
+        // O valor do banco não serve como refresh token
+        refresh(salvo).andExpect(status().isBadRequest());
+        refresh(login.refreshToken()).andExpect(status().isOk());
+    }
+
+    // A V12 converte os tokens que já existiam com o SQL abaixo: precisa dar o mesmo
+    // hash do Java, senão quem estava logado perde a sessão na atualização
+    @Test
+    void hashDaMigracaoDeveSerIgualAoDoJava() {
+        String token = UUID.randomUUID().toString();
+        String doBanco = jdbcTemplate.queryForObject(
+                "SELECT encode(sha256(convert_to(?, 'UTF8')), 'hex')", String.class, token);
+
+        assertThat(doBanco).isEqualTo(HashDeToken.sha256(token));
+    }
+
+    @Test
+    void bancoDeveGuardarSoOHashDoTokenDeRecuperacao() throws Exception {
+        Conta conta = cadastrar();
+        solicitarRecuperacao(conta.email()).andExpect(status().isOk());
+
+        String salvo = jdbcTemplate.queryForObject(
+                "SELECT token FROM token_recuperacao_senha_t WHERE usuario_id = ?", String.class,
+                UUID.fromString(conta.id()));
+
+        // SHA-256 em hex; o token mandado por e-mail é um UUID
+        assertThat(salvo).matches("[0-9a-f]{64}");
+        redefinirSenha(salvo, "Recuperada7").andExpect(status().isBadRequest());
+    }
+
+    @Test
     void refreshTokenJaUsadoOuInvalidoDeveSerRecusado() throws Exception {
         Conta conta = cadastrar();
         Tokens login = loginTokens(conta.email(), SENHA);
         refresh(login.refreshToken()).andExpect(status().isOk());
 
-        // rotacao: o refresh token anterior deixa de valer
-        refresh(login.refreshToken()).andExpect(status().isBadRequest());
-        refresh("refresh-inexistente").andExpect(status().isBadRequest());
+        // rotacao: o refresh token anterior deixa de valer. Revogado e inexistente
+        // recebem a mesma mensagem, para nao revelar se o token existe (#204)
+        refresh(login.refreshToken()).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(REFRESH_INVALIDO));
+        refresh("refresh-inexistente").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(REFRESH_INVALIDO));
         refresh("").andExpect(status().isBadRequest());
     }
 
@@ -125,24 +179,26 @@ class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
         // o mesmo codigo nao serve de novo
         redefinirSenha(codigo, "OutraSenha8")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Token de recuperação expirado ou já utilizado."));
+                .andExpect(jsonPath("$.message").value(RECUPERACAO_INVALIDA));
     }
 
     @Test
     void redefinirSenhaComCodigoInvalidoOuExpiradoDeveSerRecusado() throws Exception {
         Conta conta = cadastrar();
 
+        // inexistente, expirado e usado: a mesma mensagem (#204)
         redefinirSenha("codigo-inexistente", "Recuperada7")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Token de recuperação inválido."));
+                .andExpect(jsonPath("$.message").value(RECUPERACAO_INVALIDA));
 
         solicitarRecuperacao(conta.email()).andExpect(status().isOk());
         String codigo = ultimoCodigoDeRecuperacao(conta);
-        jdbcTemplate.update("UPDATE token_recuperacao_senha_t SET data_expiracao = now() - interval '1 minute' WHERE token = ?", codigo);
+        jdbcTemplate.update("UPDATE token_recuperacao_senha_t SET data_expiracao = now() - interval '1 minute' WHERE token = ?",
+                HashDeToken.sha256(codigo));
 
         redefinirSenha(codigo, "Recuperada7")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Token de recuperação expirado ou já utilizado."));
+                .andExpect(jsonPath("$.message").value(RECUPERACAO_INVALIDA));
         loginTokens(conta.email(), SENHA); // senha original continua valendo
     }
 
