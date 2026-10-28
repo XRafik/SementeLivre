@@ -16,6 +16,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -39,6 +45,17 @@ public class SecurityConfig {
                 // front distinguir "sessao expirada" de "sem permissao".
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                // Além dos padrões do Spring (nosniff, X-Frame-Options DENY, no-cache), #202:
+                // a API só responde JSON, então a CSP não libera nada. O Swagger UI é uma
+                // página com script e fica de fora (ele nem existe no perfil prod, #203).
+                .headers(headers -> headers
+                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
+                        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(
+                                new NegatedRequestMatcher(new OrRequestMatcher(
+                                        PathPatternRequestMatcher.pathPattern("/swagger-ui/**"),
+                                        PathPatternRequestMatcher.pathPattern("/swagger-ui.html"))),
+                                new StaticHeadersWriter("Content-Security-Policy",
+                                        "default-src 'none'; frame-ancestors 'none'"))))
                 .authorizeHttpRequests(authorize -> authorize
                         // O dispatch de erro do container e anonimo; liberado para um 500 nao virar 401/403.
                         .requestMatchers("/error").permitAll()
