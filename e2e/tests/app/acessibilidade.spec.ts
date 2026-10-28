@@ -72,7 +72,9 @@ test.describe('Acessibilidade (front-app)', () => {
     await expect(nav.getByRole('link', { name: 'Produtos' })).not.toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('tab')).toHaveCount(0);
 
+    // Sai: sem o cookie da sessão e sem o access token da aba
     await page.context().clearCookies();
+    await page.evaluate(() => sessionStorage.clear());
     await page.goto('/entrar');
     await page.getByRole('button', { name: 'Mostrar senha' }).click();
     await expect(page.getByLabel(/^Senha/)).toHaveAttribute('type', 'text');
