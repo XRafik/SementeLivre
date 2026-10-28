@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.ResultActions;
 
 import com.jayway.jsonpath.JsonPath;
+import com.sementelivre.backend.security.HashDeToken;
 import com.sementelivre.backend.security.JwtService;
 
 import io.jsonwebtoken.Claims;
@@ -54,11 +55,19 @@ class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
                 .content("{\"token\":\"%s\",\"novaSenha\":\"%s\"}".formatted(codigo, novaSenha)));
     }
 
-    /** O codigo vai por e-mail; nos testes (sem SMTP) ele e lido direto do banco. */
+    /**
+     * O codigo vai por e-mail e o banco so guarda o hash dele (#206). Nos testes
+     * (sem SMTP) o ultimo token da conta passa a ser o hash de um codigo conhecido.
+     */
     private String ultimoCodigoDeRecuperacao(Conta conta) {
-        return jdbcTemplate.queryForObject(
-                "SELECT token FROM token_recuperacao_senha_t WHERE usuario_id = ? ORDER BY data_expiracao DESC LIMIT 1",
-                String.class, UUID.fromString(conta.id()));
+        String codigo = "codigo-" + UUID.randomUUID();
+        int trocados = jdbcTemplate.update("""
+                UPDATE token_recuperacao_senha_t SET token = ?
+                WHERE id = (SELECT id FROM token_recuperacao_senha_t WHERE usuario_id = ?
+                            ORDER BY data_expiracao DESC LIMIT 1)
+                """, HashDeToken.sha256(codigo), UUID.fromString(conta.id()));
+        assertThat(trocados).isEqualTo(1);
+        return codigo;
     }
 
     // ── refresh ──────────────────────────────────────────────────────────────
@@ -79,6 +88,46 @@ class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
         mockMvc.perform(get("/auth/me").header(HttpHeaders.AUTHORIZATION, renovados.bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(conta.id()));
+    }
+
+    @Test
+    void bancoDeveGuardarSoOHashDoRefreshToken() throws Exception {
+        Conta conta = cadastrar();
+        Tokens login = loginTokens(conta.email(), SENHA);
+
+        String salvo = jdbcTemplate.queryForObject(
+                "SELECT token FROM refresh_token_t WHERE usuario_id = ?", String.class, UUID.fromString(conta.id()));
+
+        assertThat(salvo).isNotEqualTo(login.refreshToken());
+        assertThat(salvo).isEqualTo(HashDeToken.sha256(login.refreshToken()));
+        // O valor do banco não serve como refresh token
+        refresh(salvo).andExpect(status().isBadRequest());
+        refresh(login.refreshToken()).andExpect(status().isOk());
+    }
+
+    // A V12 converte os tokens que já existiam com o SQL abaixo: precisa dar o mesmo
+    // hash do Java, senão quem estava logado perde a sessão na atualização
+    @Test
+    void hashDaMigracaoDeveSerIgualAoDoJava() {
+        String token = UUID.randomUUID().toString();
+        String doBanco = jdbcTemplate.queryForObject(
+                "SELECT encode(sha256(convert_to(?, 'UTF8')), 'hex')", String.class, token);
+
+        assertThat(doBanco).isEqualTo(HashDeToken.sha256(token));
+    }
+
+    @Test
+    void bancoDeveGuardarSoOHashDoTokenDeRecuperacao() throws Exception {
+        Conta conta = cadastrar();
+        solicitarRecuperacao(conta.email()).andExpect(status().isOk());
+
+        String salvo = jdbcTemplate.queryForObject(
+                "SELECT token FROM token_recuperacao_senha_t WHERE usuario_id = ?", String.class,
+                UUID.fromString(conta.id()));
+
+        // SHA-256 em hex; o token mandado por e-mail é um UUID
+        assertThat(salvo).matches("[0-9a-f]{64}");
+        redefinirSenha(salvo, "Recuperada7").andExpect(status().isBadRequest());
     }
 
     @Test
@@ -144,7 +193,8 @@ class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
 
         solicitarRecuperacao(conta.email()).andExpect(status().isOk());
         String codigo = ultimoCodigoDeRecuperacao(conta);
-        jdbcTemplate.update("UPDATE token_recuperacao_senha_t SET data_expiracao = now() - interval '1 minute' WHERE token = ?", codigo);
+        jdbcTemplate.update("UPDATE token_recuperacao_senha_t SET data_expiracao = now() - interval '1 minute' WHERE token = ?",
+                HashDeToken.sha256(codigo));
 
         redefinirSenha(codigo, "Recuperada7")
                 .andExpect(status().isBadRequest())
