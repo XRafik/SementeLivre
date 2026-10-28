@@ -4,8 +4,9 @@
  * Responsabilidades:
  *  - Anexar o accessToken JWT em cada requisição autenticada.
  *  - Tentar renovar o accessToken pela sessão (/api/sessao/renovar) quando receber 401.
- *  - Guardar o accessToken só na memória da aba; o refresh token fica num cookie
- *    HttpOnly das rotas /api/sessao, que script nenhum da página lê (#201).
+ *  - Guardar o accessToken (30 min) na sessionStorage da aba; o refresh token
+ *    (7 dias) fica num cookie HttpOnly das rotas /api/sessao, que script nenhum
+ *    da página lê (#201).
  *  - Avisar por toast quando não há conexão ou quando a sessão expira.
  *  - Exportar helpers tipados: apiGet, apiPost, apiPut, apiPatch, apiDelete.
  */
@@ -29,22 +30,46 @@ export function apiUrl(caminho: string | null | undefined): string {
 
 // ── Tokens ─────────────────────────────────────────────────────────────────────
 
-// Só na memória: some ao recarregar a página, e a sessão volta pelo cookie
-let accessToken: string | null = null;
+// O access token fica na sessionStorage da aba, e não só na memória: assim recarregar
+// ou abrir outra tela não renova a sessão. Cada renovação troca o refresh token, e uma
+// renovação cortada no meio por uma navegação deixava o navegador com o refresh
+// antigo, já revogado (a sessão caía). Um script injetado na página conseguiria um
+// access token de qualquer jeito, pedindo a /api/sessao/renovar; o que não pode
+// vazar é o refresh, que fica no cookie.
+const CHAVE_ACCESS = 'sl_access';
 
 // Versões antigas guardavam os dois tokens no localStorage
 const CHAVES_ANTIGAS = ['sl_access_token', 'sl_refresh_token'];
 
+let accessToken: string | null = null;
+
+function guardarNaAba(token: string | null): void {
+  try {
+    if (token) sessionStorage.setItem(CHAVE_ACCESS, token);
+    else sessionStorage.removeItem(CHAVE_ACCESS);
+  } catch {
+    // sem sessionStorage (modo privado restrito): fica só na memória
+  }
+}
+
 export function getAccessToken(): string | null {
+  if (accessToken || typeof window === 'undefined') return accessToken;
+  try {
+    accessToken = sessionStorage.getItem(CHAVE_ACCESS);
+  } catch {
+    // sem sessionStorage
+  }
   return accessToken;
 }
 
 export function saveAccessToken(token: string): void {
   accessToken = token;
+  guardarNaAba(token);
 }
 
 export function clearTokens(): void {
   accessToken = null;
+  guardarNaAba(null);
   try {
     CHAVES_ANTIGAS.forEach((chave) => localStorage.removeItem(chave));
   } catch {
@@ -137,11 +162,11 @@ async function pedirRenovacao(): Promise<Renovacao> {
     // fetch direto (e não request()) para um 401 da própria renovação nunca disparar outra
     const res = await fetch('/api/sessao/renovar', { method: 'POST' });
     if (res.ok) {
-      accessToken = ((await res.json()) as { accessToken: string }).accessToken;
+      saveAccessToken(((await res.json()) as { accessToken: string }).accessToken);
       return 'ok';
     }
     if (res.status === 503 || res.status === 429) return 'indisponivel';
-    accessToken = null;
+    clearTokens();
     return 'sem-sessao';
   } catch {
     return 'indisponivel';
@@ -172,9 +197,9 @@ export async function renovarToken(): Promise<boolean> {
   return (await renovarSessao()) === 'ok';
 }
 
-/** Há sessão? Sem access token na memória (página recém-aberta), tenta renová-la pelo cookie. */
+/** Há sessão? Sem access token na aba (aba nova), tenta renová-la pelo cookie. */
 export async function verificarSessao(): Promise<Renovacao> {
-  return accessToken ? 'ok' : renovarSessao();
+  return getAccessToken() ? 'ok' : renovarSessao();
 }
 
 /** Depois de um 401: renova e devolve o token novo, ou lança o erro de sessão expirada / sem conexão. */
@@ -184,7 +209,7 @@ async function renovarDepoisDe401(): Promise<string> {
     emitirToast(MENSAGEM_SEM_CONEXAO, 'error');
     throw buildApiError(0, { message: MENSAGEM_SEM_CONEXAO, code: 'network/offline' });
   }
-  if (renovacao === 'sem-sessao' || !accessToken) {
+  if (renovacao === 'sem-sessao' || !getAccessToken()) {
     clearTokens();
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('sl:session-expired'));
@@ -192,7 +217,7 @@ async function renovarDepoisDe401(): Promise<string> {
     emitirToast(MENSAGEM_SESSAO_EXPIRADA, 'warning');
     throw buildApiError(401, { message: MENSAGEM_SESSAO_EXPIRADA, code: 'auth/session-expired' });
   }
-  return accessToken;
+  return getAccessToken()!;
 }
 
 // 401 nessas rotas é resposta do próprio fluxo de auth (credencial errada), não token vencido.

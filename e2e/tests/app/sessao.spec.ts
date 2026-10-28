@@ -47,12 +47,29 @@ test.describe('Sessão e offline (front-app)', () => {
     expect(sessao?.sameSite).toBe('Strict');
     expect(sessao?.path).toBe('/api/sessao');
 
+    // O refresh token (7 dias) não aparece para script nenhum; o access (30 min) fica na aba
     const visivelNoJs = await page.evaluate(() => ({
       cookies: document.cookie,
-      storage: Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k.includes('token')),
+      local: Object.keys(localStorage).filter((k) => k.includes('token') || k.includes('refresh')),
+      daAba: Object.keys(sessionStorage),
     }));
     expect(visivelNoJs.cookies).not.toContain('sl_refresh');
-    expect(visivelNoJs.storage).toEqual([]);
+    expect(visivelNoJs.local).toEqual([]);
+    expect(visivelNoJs.daAba).toEqual(['sl_access']);
+  });
+
+  test('navegar e recarregar não renovam a sessão a cada página', async ({ appLogado: page }) => {
+    const renovacoes: string[] = [];
+    page.on('request', (req) => {
+      if (req.url().includes('/api/sessao/renovar')) renovacoes.push(req.url());
+    });
+
+    await page.goto('/produtos');
+    await page.goto('/pedidos');
+    await page.reload();
+    await expect(page.getByRole('navigation', { name: 'Navegação principal' })).toBeVisible();
+
+    expect(renovacoes).toEqual([]);
   });
 
   test('várias abas abertas juntas não derrubam a sessão', async ({ appLogado: page }) => {

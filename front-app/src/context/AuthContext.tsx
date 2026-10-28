@@ -4,7 +4,7 @@
  * AuthContext.tsx — Contexto de autenticação integrado ao backend REST.
  *
  *   - A sessão vem do cookie HttpOnly de /api/sessao (lib/api.ts): na montagem, sem
- *     access token na memória, renova pela sessão e chama GET /auth/me para carregar
+ *     access token na aba, renova pela sessão e chama GET /auth/me para carregar
  *     o perfil completo do proprietário.
  *   - `user` é o resumo da sessão (uid + email + nome); `perfil` é a resposta completa do /auth/me.
  *   - Escuta `sl:session-expired` (disparado por api.ts quando o refresh falha) para sair.
