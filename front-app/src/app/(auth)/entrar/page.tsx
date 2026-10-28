@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { loginApi } from '@/lib/authApi';
-import { getAccessToken, isApiError } from '@/lib/api';
+import { isApiError, verificarSessao } from '@/lib/api';
 import { useToast } from '@/components/feedback/Toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,9 +32,13 @@ export default function EntrarPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (getAccessToken()) {
-      router.replace('/dashboard');
-    }
+    let cancelado = false;
+    void verificarSessao().then((sessao) => {
+      if (!cancelado && sessao === 'ok') router.replace('/dashboard');
+    });
+    return () => {
+      cancelado = true;
+    };
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {

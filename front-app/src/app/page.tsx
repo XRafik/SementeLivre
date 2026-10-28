@@ -2,18 +2,20 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAccessToken } from '@/lib/api';
+import { verificarSessao } from '@/lib/api';
 
 export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (token) {
-      router.replace('/dashboard');
-    } else {
-      router.replace('/entrar');
-    }
+    let cancelado = false;
+    // Servidor fora do ar com sessão salva também vai ao dashboard, que oferece tentar de novo
+    void verificarSessao().then((sessao) => {
+      if (!cancelado) router.replace(sessao === 'sem-sessao' ? '/entrar' : '/dashboard');
+    });
+    return () => {
+      cancelado = true;
+    };
   }, [router]);
 
   return (

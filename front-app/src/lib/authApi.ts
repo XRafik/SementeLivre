@@ -2,9 +2,11 @@
  * authApi.ts — Funções que integram com os endpoints de autenticação e de conta do backend.
  *
  * Endpoints consumidos:
- *  POST /auth/login             → retorna { accessToken, refreshToken, tokenType, expiresInSeconds }
+ *  POST /api/sessao             → login pelo servidor do app; retorna { accessToken } e grava o
+ *                                 refresh token num cookie HttpOnly (#201)
+ *  DELETE /api/sessao           → sair: revoga o refresh token e apaga o cookie
+ *  POST /api/sessao/renovar     → renova o accessToken pelo cookie (via api.ts)
  *  POST /auth/cadastrar         → cria proprietário + conta de login; retorna PerfilUsuario (201 Created)
- *  POST /auth/refresh           → retorna { accessToken, refreshToken, tokenType, expiresInSeconds } (via api.ts)
  *  POST /auth/recuperar-senha   → retorna { mensagem: string }
  *  POST /auth/redefinir-senha   → retorna { mensagem: string }
  *  GET  /auth/me                → retorna PerfilUsuario (conta autenticada, com endereço e RG)
@@ -13,15 +15,14 @@
  *  DELETE /api/pessoas/{id}/conta → exclui a conta do titular (LGPD); 204
  */
 
-import { apiGet, apiPost, apiPut, apiDelete, saveTokens, clearTokens, ApiError } from './api';
+import { apiGet, apiPost, apiPut, apiDelete, chamarSessao, saveAccessToken, clearTokens, ApiError } from './api';
 import { PerfilUsuario, PessoaUpdateRequest, Proprietario, ProprietarioCadastroRequest } from '@/types/user';
 
 // ── DTOs (espelham os Records do backend) ─────────────────────────────────────
 
-export interface TokenResponse {
+/** Resposta de /api/sessao: o refresh token fica no cookie, fora do alcance do JavaScript. */
+export interface SessaoResponse {
   accessToken: string;
-  refreshToken: string;
-  tokenType: string;
   expiresInSeconds: number;
 }
 
@@ -50,14 +51,14 @@ export function meApi(): Promise<PerfilUsuario> {
 // ── login ─────────────────────────────────────────────────────────────────────
 
 export async function loginApi(email: string, senha: string): Promise<AuthSession> {
-  const data = await apiPost<TokenResponse>('/auth/login', { email, senha }, { public: true });
-  saveTokens(data.accessToken, data.refreshToken);
+  const data = await chamarSessao<SessaoResponse>('', 'POST', { email, senha });
+  saveAccessToken(data.accessToken);
 
   // Obtém dados do usuário autenticado para montar a sessão
   const me = await meApi();
   if (me.tipoPessoa !== 'PROPRIETARIO') {
     // O front-app é do proprietário; admin usa o painel do front-site.
-    clearTokens();
+    logoutApi();
     const erro: ApiError = {
       status: 403,
       message: 'Esta conta não é de proprietário. Use o painel administrativo.',
@@ -106,8 +107,10 @@ export async function excluirContaApi(id: string): Promise<void> {
   await apiDelete<void>(`/api/pessoas/${id}/conta`);
 }
 
-// ── logout (limpa tokens localmente) ─────────────────────────────────────────
+// ── logout ───────────────────────────────────────────────────────────────────
 
+/** Limpa o token da memória e, no servidor do app, revoga o refresh e apaga o cookie. */
 export function logoutApi(): void {
   clearTokens();
+  void fetch('/api/sessao', { method: 'DELETE' }).catch(() => undefined);
 }

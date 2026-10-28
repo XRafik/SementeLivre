@@ -113,6 +113,13 @@ public class AuthService {
         return new TokenResponseDTO(novoAccessToken, novoRefreshToken, 1800L);
     }
 
+    /** Sair: o refresh token deixa de valer. Token que já não existe não é erro. */
+    @Transactional
+    public void sair(RefreshTokenRequestDTO dto) {
+        refreshTokenRepository.findByToken(HashDeToken.sha256(dto.refreshToken()))
+                .ifPresent(refreshTokenRepository::delete);
+    }
+
     @Transactional
     public void solicitarRecuperacaoSenha(SolicitarRecuperacaoDTO dto) {
         var usuarioOpt = usuarioRepository.findByPessoaEmailIgnoreCase(Pessoa.normalizarEmail(dto.email()));

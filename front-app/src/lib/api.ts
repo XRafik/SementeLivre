@@ -3,8 +3,9 @@
  *
  * Responsabilidades:
  *  - Anexar o accessToken JWT em cada requisição autenticada.
- *  - Tentar renovar o accessToken via /auth/refresh quando receber 401.
- *  - Persistir / limpar tokens no localStorage de forma padronizada.
+ *  - Tentar renovar o accessToken pela sessão (/api/sessao/renovar) quando receber 401.
+ *  - Guardar o accessToken só na memória da aba; o refresh token fica num cookie
+ *    HttpOnly das rotas /api/sessao, que script nenhum da página lê (#201).
  *  - Avisar por toast quando não há conexão ou quando a sessão expira.
  *  - Exportar helpers tipados: apiGet, apiPost, apiPut, apiPatch, apiDelete.
  */
@@ -26,31 +27,29 @@ export function apiUrl(caminho: string | null | undefined): string {
   return `${BASE_URL}${caminho.startsWith('/') ? '' : '/'}${caminho}`;
 }
 
-// ── Chaves de armazenamento ────────────────────────────────────────────────────
+// ── Tokens ─────────────────────────────────────────────────────────────────────
 
-const TOKEN_KEY = 'sl_access_token';
-const REFRESH_KEY = 'sl_refresh_token';
+// Só na memória: some ao recarregar a página, e a sessão volta pelo cookie
+let accessToken: string | null = null;
 
-// ── Persistência de tokens ─────────────────────────────────────────────────────
+// Versões antigas guardavam os dois tokens no localStorage
+const CHAVES_ANTIGAS = ['sl_access_token', 'sl_refresh_token'];
 
 export function getAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return accessToken;
 }
 
-export function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(REFRESH_KEY);
-}
-
-export function saveTokens(accessToken: string, refreshToken: string): void {
-  localStorage.setItem(TOKEN_KEY, accessToken);
-  localStorage.setItem(REFRESH_KEY, refreshToken);
+export function saveAccessToken(token: string): void {
+  accessToken = token;
 }
 
 export function clearTokens(): void {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
+  accessToken = null;
+  try {
+    CHAVES_ANTIGAS.forEach((chave) => localStorage.removeItem(chave));
+  } catch {
+    // sem localStorage (modo privado restrito): nada a limpar
+  }
 }
 
 // ── Tipos auxiliares ───────────────────────────────────────────────────────────
@@ -92,52 +91,112 @@ function buildApiError(status: number, body: unknown): ApiError {
   return { status, message: String(body || 'Erro desconhecido'), fieldErrors: {} };
 }
 
-// ── Refresh silencioso ─────────────────────────────────────────────────────────
+// ── Sessão (rotas /api/sessao do próprio app) ──────────────────────────────────
 
-let _refreshPromise: Promise<string | null> | null = null;
+/**
+ * Chama uma rota de sessão do app. Erros viram ApiError como os do backend;
+ * sem conexão (ou backend fora do ar, 503) avisa por toast e lança status 0.
+ */
+export async function chamarSessao<T>(caminho: string, metodo: 'POST' | 'DELETE', corpo?: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/sessao${caminho}`, {
+      method: metodo,
+      headers: corpo !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
+    });
+  } catch {
+    res = new Response(null, { status: 503 });
+  }
 
-async function silentRefresh(): Promise<string | null> {
-  // Evitar múltiplas chamadas simultâneas de refresh
-  if (_refreshPromise) return _refreshPromise;
-
-  _refreshPromise = (async () => {
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) return null;
-
+  if (res.status === 503) {
+    emitirToast(MENSAGEM_SEM_CONEXAO, 'error');
+    throw buildApiError(0, { message: MENSAGEM_SEM_CONEXAO, code: 'network/offline' });
+  }
+  if (!res.ok) {
+    const texto = await res.text();
+    let corpoDoErro: unknown = texto;
     try {
-      // fetch direto (e não request()) para um 401/400 do próprio refresh nunca disparar outro refresh
-      const res = await fetch(`${BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      if (!res.ok) {
-        clearTokens();
-        return null;
-      }
-
-      const data = await res.json();
-      saveTokens(data.accessToken, data.refreshToken ?? refreshToken);
-      return data.accessToken as string;
+      corpoDoErro = JSON.parse(texto);
     } catch {
-      clearTokens();
-      return null;
+      // corpo vazio ou não-JSON
+    }
+    throw buildApiError(res.status, corpoDoErro);
+  }
+  if (res.status === 204) return undefined as unknown as T;
+  return res.json() as Promise<T>;
+}
+
+/** 'ok': sessão renovada; 'sem-sessao': não há (ou acabou); 'indisponivel': servidor fora do ar ou ocupado. */
+export type Renovacao = 'ok' | 'sem-sessao' | 'indisponivel';
+
+let _renovacao: Promise<Renovacao> | null = null;
+
+async function pedirRenovacao(): Promise<Renovacao> {
+  try {
+    // fetch direto (e não request()) para um 401 da própria renovação nunca disparar outra
+    const res = await fetch('/api/sessao/renovar', { method: 'POST' });
+    if (res.ok) {
+      accessToken = ((await res.json()) as { accessToken: string }).accessToken;
+      return 'ok';
+    }
+    if (res.status === 503 || res.status === 429) return 'indisponivel';
+    accessToken = null;
+    return 'sem-sessao';
+  } catch {
+    return 'indisponivel';
+  }
+}
+
+/** Troca o refresh token do cookie por um access token novo. */
+export function renovarSessao(): Promise<Renovacao> {
+  // Uma renovação por vez nesta aba
+  if (_renovacao) return _renovacao;
+
+  _renovacao = (async () => {
+    try {
+      // ...e entre abas: elas dividem o cookie, e o refresh troca a cada uso. Duas
+      // renovações juntas mandariam o mesmo refresh e a segunda derrubaria a sessão.
+      const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+      return locks ? await locks.request('sl-renovar-sessao', pedirRenovacao) : await pedirRenovacao();
     } finally {
-      _refreshPromise = null;
+      _renovacao = null;
     }
   })();
 
-  return _refreshPromise;
+  return _renovacao;
 }
 
 /** Renova o accessToken sem novo login. Usado quando o token atual deixou de valer (ex.: troca de e-mail). */
 export async function renovarToken(): Promise<boolean> {
-  return (await silentRefresh()) !== null;
+  return (await renovarSessao()) === 'ok';
 }
 
-// 401 nessas rotas é resposta do próprio fluxo de auth (credencial errada, refresh inválido), não token vencido.
-const ROTAS_SEM_REFRESH = ['/auth/login', '/auth/refresh', '/auth/cadastrar'];
+/** Há sessão? Sem access token na memória (página recém-aberta), tenta renová-la pelo cookie. */
+export async function verificarSessao(): Promise<Renovacao> {
+  return accessToken ? 'ok' : renovarSessao();
+}
+
+/** Depois de um 401: renova e devolve o token novo, ou lança o erro de sessão expirada / sem conexão. */
+async function renovarDepoisDe401(): Promise<string> {
+  const renovacao = await renovarSessao();
+  if (renovacao === 'indisponivel') {
+    emitirToast(MENSAGEM_SEM_CONEXAO, 'error');
+    throw buildApiError(0, { message: MENSAGEM_SEM_CONEXAO, code: 'network/offline' });
+  }
+  if (renovacao === 'sem-sessao' || !accessToken) {
+    clearTokens();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('sl:session-expired'));
+    }
+    emitirToast(MENSAGEM_SESSAO_EXPIRADA, 'warning');
+    throw buildApiError(401, { message: MENSAGEM_SESSAO_EXPIRADA, code: 'auth/session-expired' });
+  }
+  return accessToken;
+}
+
+// 401 nessas rotas é resposta do próprio fluxo de auth (credencial errada), não token vencido.
+const ROTAS_SEM_REFRESH = ['/auth/login', '/auth/cadastrar'];
 
 // ── Fetch base ─────────────────────────────────────────────────────────────────
 
@@ -180,16 +239,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   // ── Se 401, tenta refresh uma vez ──────────────────────────────────────────
   const podeRenovar = !isPublic && !ROTAS_SEM_REFRESH.some((rota) => path.startsWith(rota));
   if (res.status === 401 && podeRenovar) {
-    const newToken = await silentRefresh();
-    if (!newToken) {
-      clearTokens();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('sl:session-expired'));
-      }
-      emitirToast(MENSAGEM_SESSAO_EXPIRADA, 'warning');
-      throw buildApiError(401, { message: MENSAGEM_SESSAO_EXPIRADA, code: 'auth/session-expired' });
-    }
-    token = newToken;
+    token = await renovarDepoisDe401();
     res = await doFetch(token);
   }
 
@@ -250,15 +300,7 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
   let res = await doFetch(getAccessToken(), formData);
 
   if (res.status === 401) {
-    const newToken = await silentRefresh();
-    if (!newToken) {
-      clearTokens();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('sl:session-expired'));
-      }
-      emitirToast(MENSAGEM_SESSAO_EXPIRADA, 'warning');
-      throw buildApiError(401, { message: MENSAGEM_SESSAO_EXPIRADA, code: 'auth/session-expired' });
-    }
+    const newToken = await renovarDepoisDe401();
     // O FormData só pode ser lido uma vez: recria os campos para o reenvio.
     const reenvio = new FormData();
     formData.forEach((valor, chave) => reenvio.append(chave, valor));

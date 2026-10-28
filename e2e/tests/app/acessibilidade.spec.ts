@@ -72,7 +72,7 @@ test.describe('Acessibilidade (front-app)', () => {
     await expect(nav.getByRole('link', { name: 'Produtos' })).not.toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('tab')).toHaveCount(0);
 
-    await page.evaluate(() => localStorage.clear());
+    await page.context().clearCookies();
     await page.goto('/entrar');
     await page.getByRole('button', { name: 'Mostrar senha' }).click();
     await expect(page.getByLabel(/^Senha/)).toHaveAttribute('type', 'text');

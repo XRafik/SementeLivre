@@ -131,6 +131,24 @@ class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
     }
 
     @Test
+    void sairDeveRevogarORefreshToken() throws Exception {
+        Conta conta = cadastrar();
+        Tokens login = loginTokens(conta.email(), SENHA);
+
+        mockMvc.perform(post("/auth/sair")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"%s\"}".formatted(login.refreshToken())))
+                .andExpect(status().isNoContent());
+
+        refresh(login.refreshToken()).andExpect(status().isBadRequest());
+        // Sair de novo (token que já não existe) não é erro
+        mockMvc.perform(post("/auth/sair")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"%s\"}".formatted(login.refreshToken())))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     void refreshTokenJaUsadoOuInvalidoDeveSerRecusado() throws Exception {
         Conta conta = cadastrar();
         Tokens login = loginTokens(conta.email(), SENHA);

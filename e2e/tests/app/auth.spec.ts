@@ -1,5 +1,5 @@
-import { test, expect, toast } from '../../support/fixtures';
-import { gerarCpf, login, SENHA_PADRAO, unico } from '../../support/api';
+import { test, expect, toast, cookieDeSessao } from '../../support/fixtures';
+import { API_URL, gerarCpf, login, SENHA_PADRAO, unico } from '../../support/api';
 
 /** CDU de autenticação: cadastro, login e logout no front-app. */
 test.describe('Auth (front-app)', () => {
@@ -60,7 +60,9 @@ test.describe('Auth (front-app)', () => {
 
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByRole('navigation', { name: 'Navegação principal' })).toBeVisible();
-    expect(await page.evaluate(() => localStorage.getItem('sl_access_token'))).toBeTruthy();
+    // O refresh token fica num cookie HttpOnly, não no localStorage (#201)
+    expect((await cookieDeSessao(page))?.httpOnly).toBe(true);
+    expect(await page.evaluate(() => localStorage.getItem('sl_refresh_token'))).toBeNull();
   });
 
   test('login com senha errada avisa e continua na tela de login', async ({ page, produtor }) => {
@@ -79,13 +81,17 @@ test.describe('Auth (front-app)', () => {
     await expect(page.getByRole('alert').filter({ hasText: 'Preencha todos os campos.' })).toBeVisible();
   });
 
-  test('logout limpa a sessão e protege as rotas internas', async ({ appLogado: page }) => {
+  test('logout limpa a sessão e protege as rotas internas', async ({ appLogado: page, request }) => {
+    const refreshDaSessao = (await cookieDeSessao(page))!.value;
     await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Perfil' }).click();
     await page.getByRole('button', { name: 'Sair do Aplicativo' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Sair', exact: true }).click();
 
     await expect(page).toHaveURL(/\/entrar$/);
-    expect(await page.evaluate(() => localStorage.getItem('sl_access_token'))).toBeNull();
+    await expect.poll(() => cookieDeSessao(page)).toBeUndefined();
+    // O refresh token foi revogado no backend, não só apagado do navegador
+    const refresh = await request.post(`${API_URL}/auth/refresh`, { data: { refreshToken: refreshDaSessao } });
+    expect(refresh.status()).toBe(400);
 
     await page.goto('/pedidos');
     await expect(page).toHaveURL(/\/entrar$/);

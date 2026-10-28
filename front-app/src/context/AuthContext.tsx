@@ -3,8 +3,9 @@
 /**
  * AuthContext.tsx — Contexto de autenticação integrado ao backend REST.
  *
- *   - A sessão vem dos tokens JWT no localStorage (lib/api.ts); na montagem chama
- *     GET /auth/me para revalidar e carregar o perfil completo do proprietário.
+ *   - A sessão vem do cookie HttpOnly de /api/sessao (lib/api.ts): na montagem, sem
+ *     access token na memória, renova pela sessão e chama GET /auth/me para carregar
+ *     o perfil completo do proprietário.
  *   - `user` é o resumo da sessão (uid + email + nome); `perfil` é a resposta completa do /auth/me.
  *   - Escuta `sl:session-expired` (disparado por api.ts quando o refresh falha) para sair.
  *   - Sem conexão na revalidação: mantém os tokens e expõe `semConexao`, para o layout
@@ -14,7 +15,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AuthSession, logoutApi, meApi, sessaoDoPerfil } from '@/lib/authApi';
-import { getAccessToken, isApiError } from '@/lib/api';
+import { isApiError, verificarSessao } from '@/lib/api';
 import { PerfilUsuario } from '@/types/user';
 
 interface AuthContextType {
@@ -65,7 +66,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     const init = async () => {
-      if (!getAccessToken()) {
+      const sessao = await verificarSessao();
+      if (cancelled) return;
+      if (sessao !== 'ok') {
+        // Servidor fora do ar: a sessão continua no cookie, o layout oferece tentar de novo
+        if (sessao === 'indisponivel') setSemConexao(true);
         setLoading(false);
         return;
       }

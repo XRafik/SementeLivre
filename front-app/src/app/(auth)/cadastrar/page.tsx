@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { cadastrarApi } from '@/lib/authApi';
-import { getAccessToken } from '@/lib/api';
+import { verificarSessao } from '@/lib/api';
 import { aplicarErrosDaApi, comMascara } from '@/lib/forms';
 import { useToast } from '@/components/feedback/Toast';
 import { Input } from '@/components/ui/input';
@@ -50,9 +50,13 @@ export default function CadastrarPage() {
   });
 
   useEffect(() => {
-    if (getAccessToken()) {
-      router.replace('/dashboard');
-    }
+    let cancelado = false;
+    void verificarSessao().then((sessao) => {
+      if (!cancelado && sessao === 'ok') router.replace('/dashboard');
+    });
+    return () => {
+      cancelado = true;
+    };
   }, [router]);
 
   const cep = comMascara(register('cep'), formatCEP);

@@ -64,6 +64,13 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("mensagem", "Senha alterada com sucesso."));
     }
 
+    // Chamado pelo front-app ao sair (#201): sem isso o refresh token seguia valendo por 7 dias
+    @PostMapping("/sair")
+    public ResponseEntity<Void> sair(@RequestBody @Valid RefreshTokenRequestDTO dto) {
+        authService.sair(dto);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/me")
     public ResponseEntity<UsuarioResponseDTO> obterPerfilAtual(@AuthenticationPrincipal Usuario usuarioAutenticado) {
         if (usuarioAutenticado == null) {
