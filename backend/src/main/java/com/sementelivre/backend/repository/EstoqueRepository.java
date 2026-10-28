@@ -121,6 +121,14 @@ public interface EstoqueRepository extends BaseRepository<Estoque, UUID> {
             List<Disponibilidade> disponibilidadesPublicas);
 
     long countByProprietarioId(UUID proprietarioId);
+
+    List<Estoque> findByProprietarioId(UUID proprietarioId);
+
+    boolean existsByIdAndProprietarioId(UUID id, UUID proprietarioId);
+
+    /** Alguma oferta de outro proprietário usa o produto. */
+    boolean existsByProdutoIdAndProprietarioIdNot(UUID produtoId, UUID proprietarioId);
+
     /**
      * Verifica se o Proprietario tem algum Estoque vinculado, usado para
      * bloquear exclusão de Propriedade com dependências (issue #63).

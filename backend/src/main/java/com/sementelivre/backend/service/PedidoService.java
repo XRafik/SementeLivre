@@ -187,6 +187,11 @@ public class PedidoService {
                 .toList();
     }
 
+    /** Usado no @PreAuthorize do controller: o pedido existe e foi recebido por esse proprietário. */
+    public boolean ehDoProprietario(UUID pedidoId, UUID proprietarioId) {
+        return pedidoRepository.existsByIdAndProprietarioRecebedorId(pedidoId, proprietarioId);
+    }
+
     // READ - por ID
     @Transactional(readOnly = true)
     public PedidoResponseDTO buscarPorId(UUID id) {

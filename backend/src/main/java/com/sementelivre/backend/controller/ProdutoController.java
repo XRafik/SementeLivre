@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -69,8 +70,9 @@ public class ProdutoController {
         );
     }
 
-    // UPDATE
+    // UPDATE - admin, ou produtor cujo produto não é usado por outro produtor
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @produtoService.podeAlterar(#id, principal.id)")
     public ResponseEntity<ProdutoResponseDTO> atualizar(
             @PathVariable UUID id,
             @Valid @RequestBody ProdutoRequestDTO produto) {
@@ -80,8 +82,9 @@ public class ProdutoController {
         );
     }
 
-    // DELETE
+    // DELETE - mesma regra do UPDATE
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @produtoService.podeAlterar(#id, principal.id)")
     public ResponseEntity<Void> excluir(@PathVariable UUID id) {
 
         produtoService.excluir(id);

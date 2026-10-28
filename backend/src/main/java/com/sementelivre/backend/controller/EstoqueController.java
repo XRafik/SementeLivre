@@ -10,6 +10,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +26,7 @@ import com.sementelivre.backend.dto.EstoqueRequestDTO;
 import com.sementelivre.backend.dto.EstoqueResponseDTO;
 import com.sementelivre.backend.dto.MovimentacaoRequestDTO;
 import com.sementelivre.backend.dto.MovimentacaoResponseDTO;
+import com.sementelivre.backend.entity.Usuario;
 import com.sementelivre.backend.service.EstoqueService;
 
 import jakarta.validation.Valid;
@@ -39,8 +42,10 @@ public class EstoqueController {
         this.estoqueService = estoqueService;
     }
 
-    // CREATE
+    // CREATE - o produtor só cadastra oferta para si, de um produto que pode usar
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN') or (#estoque.proprietarioId() == principal.id"
+            + " and @produtoService.podeAlterar(#estoque.produtoId(), principal.id))")
     public ResponseEntity<EstoqueResponseDTO> criar(
             @Valid @RequestBody EstoqueRequestDTO estoque) {
 
@@ -49,17 +54,22 @@ public class EstoqueController {
         );
     }
 
-    // READ - todos
+    // READ - admin lista todos; o proprietário, só os dele
     @GetMapping
-    public ResponseEntity<List<EstoqueResponseDTO>> listarTodos() {
+    public ResponseEntity<List<EstoqueResponseDTO>> listarTodos(
+            @AuthenticationPrincipal Usuario usuario) {
 
-        return ResponseEntity.ok(
-                estoqueService.listarTodos()
-        );
+        boolean admin = usuario.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+
+        return ResponseEntity.ok(admin
+                ? estoqueService.listarTodos()
+                : estoqueService.listarPorProprietario(usuario.getId()));
     }
 
-    // READ - por ID
+    // READ - por ID (admin ou o dono)
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @estoqueService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<EstoqueResponseDTO> buscarPorId(
             @PathVariable UUID id) {
 
@@ -68,8 +78,11 @@ public class EstoqueController {
         );
     }
 
-    // UPDATE
+    // UPDATE - o dono não pode passar a oferta para outra pessoa
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or (@estoqueService.ehDoProprietario(#id, principal.id)"
+            + " and #estoque.proprietarioId() == principal.id"
+            + " and @produtoService.podeAlterar(#estoque.produtoId(), principal.id))")
     public ResponseEntity<EstoqueResponseDTO> atualizar(
             @PathVariable UUID id,
             @Valid @RequestBody EstoqueRequestDTO estoque) {
@@ -79,8 +92,9 @@ public class EstoqueController {
         );
     }
 
-    // DELETE
+    // DELETE (admin ou o dono)
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @estoqueService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<Void> excluir(@PathVariable UUID id) {
 
         estoqueService.excluir(id);
@@ -92,6 +106,7 @@ public class EstoqueController {
      * Histórico do estoque, do mais recente para o mais antigo (TELA 09).
      */
     @GetMapping("/{id}/movimentacoes")
+    @PreAuthorize("hasRole('ADMIN') or @estoqueService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<Page<MovimentacaoResponseDTO>> historico(
             @PathVariable UUID id,
             @RequestParam(defaultValue = "0") int page,
@@ -106,6 +121,7 @@ public class EstoqueController {
      * Lança uma entrada ou saída e ajusta o saldo na mesma transação.
      */
     @PostMapping("/{id}/movimentacoes")
+    @PreAuthorize("hasRole('ADMIN') or @estoqueService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<MovimentacaoResponseDTO> registrarMovimentacao(
             @PathVariable UUID id,
             @Valid @RequestBody MovimentacaoRequestDTO movimentacao) {

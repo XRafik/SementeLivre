@@ -3,12 +3,12 @@ package com.sementelivre.backend.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -17,12 +17,17 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import com.jayway.jsonpath.JsonPath;
+import com.sementelivre.backend.dto.CompradorDTO;
+import com.sementelivre.backend.dto.ItemPedidoRequestDTO;
+import com.sementelivre.backend.dto.PedidoRequestDTO;
+import com.sementelivre.backend.dto.PedidoResponseDTO;
 import com.sementelivre.backend.entity.Produto;
 import com.sementelivre.backend.entity.enums.EspecieGeral;
 import com.sementelivre.backend.entity.enums.FormatoProduto;
+import com.sementelivre.backend.entity.enums.TipoPedido;
 import com.sementelivre.backend.entity.enums.TipoProduto;
 import com.sementelivre.backend.repository.ProdutoRepository;
+import com.sementelivre.backend.service.PedidoService;
 
 /**
  * Exclusão de pessoa com dados vinculados (issue #133). As FKs para pessoa são
@@ -37,6 +42,9 @@ class ExclusaoContaIntegrationTest extends AbstractAuthIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private PedidoService pedidoService;
 
     private record Cenario(Conta vendedor, String tokenVendedor, Conta comprador, String tokenComprador,
                            String pedidoId) {}
@@ -68,17 +76,14 @@ class ExclusaoContaIntegrationTest extends AbstractAuthIntegrationTest {
                                 """.formatted(vendedor.id(), produto.getId())))
                 .andExpect(status().isOk());
 
-        String pedido = mockMvc.perform(post("/pedidos").header(HttpHeaders.AUTHORIZATION, tokenComprador)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"tipoPedido": "VENDA", "proprietarioRecebedorId": "%s",
-                                 "itens": [{"produtoId": "%s", "quantidade": 1.0, "precoUnitario": 10.0}],
-                                 "comprador": {"nome": "Comprador Exclusão", "telefone": "32977776666"}}
-                                """.formatted(vendedor.id(), produto.getId())))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        // Pela API o produtor só registra pedido no próprio estoque; um pedido em que
+        // outra conta é a solicitante vem de antes dessa regra, então nasce pelo service.
+        PedidoResponseDTO pedido = pedidoService.criar(new PedidoRequestDTO(
+                TipoPedido.VENDA, null, UUID.fromString(comprador.id()), UUID.fromString(vendedor.id()),
+                List.of(new ItemPedidoRequestDTO(produto.getId(), 1.0, 10.0)),
+                new CompradorDTO("Comprador Exclusão", "32977776666")));
 
-        return new Cenario(vendedor, tokenVendedor, comprador, tokenComprador, JsonPath.read(pedido, "$.id"));
+        return new Cenario(vendedor, tokenVendedor, comprador, tokenComprador, pedido.id().toString());
     }
 
     private long contar(String sql, Object... args) {
@@ -104,9 +109,7 @@ class ExclusaoContaIntegrationTest extends AbstractAuthIntegrationTest {
         assertThat(contar("SELECT count(*) FROM logradouro_t WHERE id = ?", enderecoId)).isZero();
         assertThat(contar("SELECT count(*) FROM comprador_t WHERE id = ?", compradorId)).isZero();
 
-        // O comprador continua com a conta e sem o pedido que envolvia a pessoa excluída.
-        mockMvc.perform(get("/pedidos/" + c.pedidoId()).header(HttpHeaders.AUTHORIZATION, c.tokenComprador()))
-                .andExpect(status().isNotFound());
+        // O comprador continua com a conta (o pedido que envolvia a pessoa excluída já saiu acima).
         login(c.comprador().email(), SENHA);
     }
 

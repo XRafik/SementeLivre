@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import com.sementelivre.backend.dto.ProdutoRequestDTO;
 import com.sementelivre.backend.dto.ProdutoResponseDTO;
 import com.sementelivre.backend.entity.Produto;
+import com.sementelivre.backend.repository.EstoqueRepository;
+import com.sementelivre.backend.repository.ItensRepository;
 import com.sementelivre.backend.repository.ProdutoRepository;
 import com.sementelivre.backend.exception.RecursoNaoEncontradoException;
 import org.springframework.cache.annotation.Cacheable;
@@ -19,14 +21,31 @@ public class ProdutoService {
 
     private final ProdutoRepository produtoRepository;
     private final ProdutoValidacaoService produtoValidacaoService;
+    private final EstoqueRepository estoqueRepository;
+    private final ItensRepository itensRepository;
 
    public ProdutoService(
         ProdutoRepository produtoRepository,
-        ProdutoValidacaoService produtoValidacaoService) {
+        ProdutoValidacaoService produtoValidacaoService,
+        EstoqueRepository estoqueRepository,
+        ItensRepository itensRepository) {
 
     this.produtoRepository = produtoRepository;
     this.produtoValidacaoService = produtoValidacaoService;
+    this.estoqueRepository = estoqueRepository;
+    this.itensRepository = itensRepository;
 }
+
+    /**
+     * Usado no @PreAuthorize do controller. O produto não guarda dono: cada
+     * produtor cadastra o seu junto com a oferta. Quem pode alterar é quem não
+     * mexe em dado alheio, ou seja, nenhuma oferta de outro produtor usa o
+     * produto e ele não está no histórico de pedidos de outro produtor.
+     */
+    public boolean podeAlterar(UUID produtoId, UUID proprietarioId) {
+        return !estoqueRepository.existsByProdutoIdAndProprietarioIdNot(produtoId, proprietarioId)
+                && !itensRepository.existsEmPedidoDeOutroProprietario(produtoId, proprietarioId);
+    }
 
     // CREATE
     @CacheEvict(value = "produtos", allEntries = true)

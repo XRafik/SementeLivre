@@ -68,6 +68,8 @@ public interface PedidoRepository extends BaseRepository<Pedido, UUID> {
     @Query("select p.proprietarioRecebedor.id from Pedido p where p.id = :id")
     Optional<UUID> findProprietarioRecebedorId(@Param("id") UUID id);
 
+    boolean existsByIdAndProprietarioRecebedorId(UUID id, UUID proprietarioRecebedorId);
+
     @Query("select distinct i.produto.id from Itens i where i.pedido.id = :pedidoId")
     List<UUID> findProdutoIdsDoPedido(@Param("pedidoId") UUID pedidoId);
 

@@ -101,6 +101,18 @@ public class EstoqueService {
                 .toList();
     }
 
+    public List<EstoqueResponseDTO> listarPorProprietario(UUID proprietarioId) {
+        return estoqueRepository.findByProprietarioId(proprietarioId)
+                .stream()
+                .map(this::toResponseDTO)
+                .toList();
+    }
+
+    /** Usado no @PreAuthorize do controller: o estoque existe e é desse proprietário. */
+    public boolean ehDoProprietario(UUID estoqueId, UUID proprietarioId) {
+        return estoqueRepository.existsByIdAndProprietarioId(estoqueId, proprietarioId);
+    }
+
     // READ - por ID
     public EstoqueResponseDTO buscarPorId(UUID id) {
         Estoque estoque = buscarEntidadePorId(id);

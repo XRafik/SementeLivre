@@ -10,6 +10,16 @@ import com.sementelivre.backend.entity.Itens;
 
 public interface ItensRepository extends BaseRepository<Itens, UUID> {
 
+    /** O produto está no histórico de pedidos recebidos por outro proprietário. */
+    @Query("""
+            select count(i) > 0 from Itens i
+            where i.produto.id = :produtoId
+              and i.pedido.proprietarioRecebedor.id <> :proprietarioId
+            """)
+    boolean existsEmPedidoDeOutroProprietario(
+            @Param("produtoId") UUID produtoId,
+            @Param("proprietarioId") UUID proprietarioId);
+
     /**
      * Itens dos pedidos em que a pessoa é solicitante ou recebedora, na exclusão
      * da conta (LGPD). Saem antes dos pedidos: itens_pedido_t.pedido_id é

@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,24 +44,24 @@ public class PedidoController {
     }
 
     // CREATE
-    // O front-app nao precisa mandar o solicitante: quem registra e o usuario logado.
+    // O produtor registra pedido so no proprio estoque, e o solicitante e sempre o
+    // usuario logado: um usuarioSolicitanteId vindo no corpo e ignorado.
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN') or #pedido.proprietarioRecebedorId() == principal.id")
     public ResponseEntity<PedidoResponseDTO> criar(
             @Valid @RequestBody PedidoRequestDTO pedido,
             @AuthenticationPrincipal Usuario usuarioAutenticado) {
 
-        if (pedido.usuarioSolicitanteId() == null && usuarioAutenticado != null) {
-            pedido = pedido.comUsuarioSolicitante(usuarioAutenticado.getId());
-        }
-
         return ResponseEntity.ok(
-                pedidoService.criar(pedido)
+                pedidoService.criar(pedido.comUsuarioSolicitante(usuarioAutenticado.getId()))
         );
     }
 
     // READ - historico de pedidos de um proprietario, com filtros opcionais
     // ex: /pedidos?proprietarioId=...&dataInicio=2026-09-01&dataFim=2026-09-30&tipoPedido=VENDA&status=PENDENTE
+    // O proprietario so ve o proprio historico (os pedidos trazem nome e contato de quem pediu)
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN') or #proprietarioId == principal.id")
     public ResponseEntity<List<PedidoResponseDTO>> listarTodos(
             @RequestParam UUID proprietarioId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
@@ -76,8 +77,9 @@ public class PedidoController {
         );
     }
 
-    // READ - por ID
+    // READ - por ID (admin ou quem recebeu o pedido)
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @pedidoService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<PedidoResponseDTO> buscarPorId(
             @PathVariable UUID id) {
 
@@ -88,6 +90,7 @@ public class PedidoController {
 
     // UPDATE
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @pedidoService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<PedidoResponseDTO> atualizar(
             @PathVariable UUID id,
             @Valid @RequestBody PedidoUpdateDTO pedido) {
@@ -99,6 +102,7 @@ public class PedidoController {
 
     // DELETE
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @pedidoService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<Void> excluir(@PathVariable UUID id) {
 
         pedidoService.excluir(id);
@@ -111,6 +115,7 @@ public class PedidoController {
     // disparam a baixa e a restauracao do estoque.
 
     @PatchMapping("/{id}/confirmar")
+    @PreAuthorize("hasRole('ADMIN') or @pedidoService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<PedidoResponseDTO> confirmar(@PathVariable UUID id) {
 
         return ResponseEntity.ok(
@@ -119,6 +124,7 @@ public class PedidoController {
     }
 
     @PatchMapping("/{id}/cancelar")
+    @PreAuthorize("hasRole('ADMIN') or @pedidoService.ehDoProprietario(#id, principal.id)")
     public ResponseEntity<PedidoResponseDTO> cancelar(@PathVariable UUID id) {
 
         return ResponseEntity.ok(
