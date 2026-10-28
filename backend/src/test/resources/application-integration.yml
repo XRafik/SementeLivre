@@ -21,3 +21,19 @@ app:
     allowed-origins:
       - http://localhost:3000
       - http://localhost:3001
+  # Os testes de integração fazem centenas de logins e cadastros do mesmo IP
+  # (127.0.0.1). LimiteAutenticacaoIntegrationTest liga os limites de verdade.
+  auth:
+    limite:
+      login-por-ip:
+        limite: 100000
+      senha-errada-por-email:
+        limite: 100000
+      refresh-por-ip:
+        limite: 100000
+      recuperacao-por-ip:
+        limite: 100000
+      recuperacao-por-email:
+        limite: 100000
+      cadastro-por-ip:
+        limite: 100000

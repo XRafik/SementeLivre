@@ -105,9 +105,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(err);
     }
 
-    //trata erro 429 - pedido do site público acima do limite (por IP ou por e-mail de destino)
-    @ExceptionHandler(LimiteDePedidosExcedidoException.class)
-    public ResponseEntity<ErrorResponse> handleLimiteDePedidos(LimiteDePedidosExcedidoException e, HttpServletRequest request) {
+    //trata erro 429 - acima de um limite de tentativas: pedido do site público, login, cadastro...
+    @ExceptionHandler(MuitasTentativasException.class)
+    public ResponseEntity<ErrorResponse> handleMuitasTentativas(MuitasTentativasException e, HttpServletRequest request) {
         HttpStatus status = HttpStatus.TOO_MANY_REQUESTS;
 
         ErrorResponse err = new ErrorResponse(

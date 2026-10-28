@@ -5,9 +5,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import com.sementelivre.backend.dto.*;
 import com.sementelivre.backend.entity.Usuario;
 import com.sementelivre.backend.service.AuthService;
+import com.sementelivre.backend.service.LimiteAutenticacaoService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,37 +22,56 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final LimiteAutenticacaoService limite;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, LimiteAutenticacaoService limite) {
         this.authService = authService;
+        this.limite = limite;
     }
 
+    // As rotas abertas passam pelo limite de tentativas (#200): acima dele, 429 com Retry-After
+
     @PostMapping("/cadastrar")
-    public ResponseEntity<UsuarioResponseDTO> cadastrar(@RequestBody @Valid ProprietarioCreateRequestDTO dto) {
+    public ResponseEntity<UsuarioResponseDTO> cadastrar(
+            @RequestBody @Valid ProprietarioCreateRequestDTO dto, HttpServletRequest request) {
+        limite.antesDoCadastro(request);
         UsuarioResponseDTO usuarioCriado = authService.cadastrar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(usuarioCriado);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponseDTO> login(@RequestBody @Valid LoginRequestDTO dto) {
-        TokenResponseDTO tokenResponse = authService.login(dto);
+    public ResponseEntity<TokenResponseDTO> login(@RequestBody @Valid LoginRequestDTO dto, HttpServletRequest request) {
+        limite.antesDoLogin(request, dto.email());
+        TokenResponseDTO tokenResponse;
+        try {
+            tokenResponse = authService.login(dto);
+        } catch (AuthenticationException e) {
+            limite.senhaErrada(dto.email());
+            throw e;
+        }
+        limite.loginCerto(dto.email());
         return ResponseEntity.ok(tokenResponse);
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<TokenResponseDTO> refresh(@RequestBody @Valid RefreshTokenRequestDTO dto) {
+    public ResponseEntity<TokenResponseDTO> refresh(@RequestBody @Valid RefreshTokenRequestDTO dto, HttpServletRequest request) {
+        limite.antesDoRefresh(request);
         TokenResponseDTO tokenResponse = authService.refreshToken(dto);
         return ResponseEntity.ok(tokenResponse);
     }
 
     @PostMapping("/recuperar-senha")
-    public ResponseEntity<Map<String, String>> solicitarRecuperacaoSenha(@RequestBody @Valid SolicitarRecuperacaoDTO dto) {
+    public ResponseEntity<Map<String, String>> solicitarRecuperacaoSenha(
+            @RequestBody @Valid SolicitarRecuperacaoDTO dto, HttpServletRequest request) {
+        limite.antesDaRecuperacao(request, dto.email());
         authService.solicitarRecuperacaoSenha(dto);
         return ResponseEntity.ok(Map.of("mensagem", "Se o e-mail estiver cadastrado, as instruções foram enviadas."));
     }
 
     @PostMapping("/redefinir-senha")
-    public ResponseEntity<Map<String, String>> redefinirSenha(@RequestBody @Valid RedefinirSenhaDTO dto) {
+    public ResponseEntity<Map<String, String>> redefinirSenha(
+            @RequestBody @Valid RedefinirSenhaDTO dto, HttpServletRequest request) {
+        limite.antesDaRedefinicao(request);
         authService.redefinirSenha(dto);
         return ResponseEntity.ok(Map.of("mensagem", "Senha redefinida com sucesso."));
     }

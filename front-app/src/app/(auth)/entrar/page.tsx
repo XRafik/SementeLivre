@@ -50,6 +50,9 @@ export default function EntrarPage() {
         showToast('Ocorreu um erro. Tente novamente.', 'error');
       } else if (err.status === 401) {
         showToast('E-mail ou senha incorretos.', 'error');
+      } else if (err.status === 429) {
+        // Senha errada demais: o backend diz em quanto tempo dá para tentar de novo
+        showToast(err.message, 'warning');
       } else if (err.code === 'auth/not-proprietario') {
         showToast(err.message, 'error');
       } else if (err.status !== 0) {

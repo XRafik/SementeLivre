@@ -99,6 +99,32 @@ class LimitadorDeRequisicoesTest {
     }
 
     /** Relógio que o teste avança na mão. */
+    // consultar/registrar: contam só o que o chamador registra (ex.: senha errada)
+
+    @Test
+    void consultarNaoContaTentativa() {
+        for (int i = 0; i < 5; i++) {
+            assertTrue(limitador.consultar("a", 1, JANELA).isEmpty());
+        }
+        limitador.registrar("a", JANELA);
+        assertEquals(Optional.of(JANELA), limitador.consultar("a", 1, JANELA));
+    }
+
+    @Test
+    void registradasSaemDaJanelaEEsquecerZera() {
+        limitador.registrar("a", JANELA);
+        limitador.registrar("a", JANELA);
+        assertTrue(limitador.consultar("a", 2, JANELA).isPresent());
+
+        relogio.avancar(JANELA);
+        assertTrue(limitador.consultar("a", 2, JANELA).isEmpty());
+
+        limitador.registrar("a", JANELA);
+        limitador.registrar("a", JANELA);
+        limitador.esquecer("a");
+        assertTrue(limitador.consultar("a", 2, JANELA).isEmpty());
+    }
+
     static class RelogioAjustavel extends Clock {
 
         private Instant agora = Instant.parse("2026-10-13T12:00:00Z");

@@ -84,6 +84,11 @@ jobs:
           # Os testes fazem vários pedidos públicos do mesmo IP
           PEDIDO_PUBLICO_LIMITE_POR_IP: '1000'
           PEDIDO_PUBLICO_LIMITE_POR_EMAIL: '1000'
+          # ...e vários logins e cadastros
+          AUTH_LIMITE_LOGIN_POR_IP: '1000'
+          AUTH_LIMITE_SENHA_ERRADA_POR_EMAIL: '1000'
+          AUTH_LIMITE_REFRESH_POR_IP: '1000'
+          AUTH_LIMITE_CADASTRO_POR_IP: '1000'
         run: |
           nohup java -jar target/backend-*.jar \
             --logging.level.org.springframework.security=INFO \

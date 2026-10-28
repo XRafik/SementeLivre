@@ -61,6 +61,48 @@ public class LimitadorDeRequisicoes {
         return Optional.ofNullable(espera.get());
     }
 
+    /**
+     * Como {@link #tentar}, mas só consulta: não conta tentativa. Para limitar
+     * falhas (senha errada), registradas à parte com {@link #registrar}.
+     */
+    public Optional<Duration> consultar(String chave, int limite, Duration janela) {
+
+        Instant agora = relogio.instant();
+        Instant inicioDaJanela = agora.minus(janela);
+        AtomicReference<Duration> espera = new AtomicReference<>();
+
+        tentativas.computeIfPresent(chave, (k, lista) -> {
+            while (!lista.isEmpty() && !lista.peekFirst().isAfter(inicioDaJanela)) {
+                lista.pollFirst();
+            }
+            if (lista.size() >= limite) {
+                espera.set(Duration.between(agora, lista.peekFirst().plus(janela)));
+            }
+            return lista.isEmpty() ? null : lista;
+        });
+
+        return Optional.ofNullable(espera.get());
+    }
+
+    /** Conta uma tentativa sem conferir o limite. */
+    public void registrar(String chave, Duration janela) {
+        Instant agora = relogio.instant();
+        tentativas.compute(chave, (k, registro) -> {
+            Deque<Instant> lista = registro != null ? registro : new ArrayDeque<>();
+            lista.addLast(agora);
+            return lista;
+        });
+
+        if (tentativas.size() > LIMPAR_ACIMA_DE) {
+            descartarExpiradas(agora.minus(janela));
+        }
+    }
+
+    /** Zera a contagem da chave (ex.: login certo depois de senhas erradas). */
+    public void esquecer(String chave) {
+        tentativas.remove(chave);
+    }
+
     private void descartarExpiradas(Instant inicioDaJanela) {
         // computeIfPresent usa o mesmo lock da chave; devolver null remove a entrada
         tentativas.keySet().forEach(chave -> tentativas.computeIfPresent(chave, (k, lista) ->

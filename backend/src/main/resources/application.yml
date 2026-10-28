@@ -54,3 +54,15 @@ app:
       janela-email: ${PEDIDO_PUBLICO_JANELA_EMAIL:1h}
       por-ip: ${PEDIDO_PUBLICO_LIMITE_POR_IP:10}
       janela-ip: ${PEDIDO_PUBLICO_JANELA_IP:10m}
+  # Rotas abertas de /auth (#200), contra força bruta. Acima do limite, 429 com Retry-After.
+  # As janelas e os demais padrões estão em LimiteAutenticacaoProperties.
+  auth:
+    limite:
+      login-por-ip:
+        limite: ${AUTH_LIMITE_LOGIN_POR_IP:30}
+      senha-errada-por-email:
+        limite: ${AUTH_LIMITE_SENHA_ERRADA_POR_EMAIL:10}
+      refresh-por-ip:
+        limite: ${AUTH_LIMITE_REFRESH_POR_IP:120}
+      cadastro-por-ip:
+        limite: ${AUTH_LIMITE_CADASTRO_POR_IP:20}
