@@ -36,3 +36,10 @@ app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
     
+
+# Em produção o mapa da API não fica público (#203); o Swagger fica só no perfil dev.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
