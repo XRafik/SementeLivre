@@ -42,5 +42,8 @@ spring.servlet.multipart:
   max-request-size: 5MB
 
 jwt:
-  secret: ${JWT_SECRET:sementeLivreChaveSecretaSuperSeguraComMaisDe256Bits1234567890!}
+  # Sem JWT_SECRET o backend sorteia uma chave a cada subida (ver JwtService).
+  # Nunca coloque uma chave fixa aqui: este arquivo está no git.
+  secret: ${JWT_SECRET:}
+  chave-aleatoria-sem-secret: true
   expiration: 1800000

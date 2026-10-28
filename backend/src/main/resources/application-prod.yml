@@ -2,7 +2,8 @@ spring:
   datasource:
     url: ${DB_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://db:5432/semente_prod}}
     username: ${DB_USERNAME:${SPRING_DATASOURCE_USERNAME:semente_user}}
-    password: ${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:semente_pass}}
+    # Sem valor padrão: sem DB_PASSWORD a aplicação não sobe com uma senha conhecida
+    password: ${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD}}
   jpa:
     hibernate:
       ddl-auto: none

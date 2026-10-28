@@ -28,6 +28,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/devdb
       SPRING_DATASOURCE_USERNAME: devuser
       SPRING_DATASOURCE_PASSWORD: devpassword
+      # Opcional no dev: sem ele o backend sorteia uma chave a cada subida
+      JWT_SECRET: ${JWT_SECRET:-}
       # E-mail (cópia do pedido, recuperação de senha). Valores em backend/.env;
       # sem MAIL_USERNAME/MAIL_PASSWORD nenhum e-mail é enviado.
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
