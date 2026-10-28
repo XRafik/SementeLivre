@@ -27,6 +27,8 @@ import io.jsonwebtoken.Claims;
 class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
 
     private static final String MENSAGEM_RECUPERACAO = "Se o e-mail estiver cadastrado, as instruções foram enviadas.";
+    private static final String REFRESH_INVALIDO = "Sessão inválida ou expirada. Faça login novamente.";
+    private static final String RECUPERACAO_INVALIDA = "Link de recuperação inválido ou expirado. Peça um novo.";
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -85,9 +87,12 @@ class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
         Tokens login = loginTokens(conta.email(), SENHA);
         refresh(login.refreshToken()).andExpect(status().isOk());
 
-        // rotacao: o refresh token anterior deixa de valer
-        refresh(login.refreshToken()).andExpect(status().isBadRequest());
-        refresh("refresh-inexistente").andExpect(status().isBadRequest());
+        // rotacao: o refresh token anterior deixa de valer. Revogado e inexistente
+        // recebem a mesma mensagem, para nao revelar se o token existe (#204)
+        refresh(login.refreshToken()).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(REFRESH_INVALIDO));
+        refresh("refresh-inexistente").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(REFRESH_INVALIDO));
         refresh("").andExpect(status().isBadRequest());
     }
 
@@ -125,16 +130,17 @@ class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
         // o mesmo codigo nao serve de novo
         redefinirSenha(codigo, "OutraSenha8")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Token de recuperação expirado ou já utilizado."));
+                .andExpect(jsonPath("$.message").value(RECUPERACAO_INVALIDA));
     }
 
     @Test
     void redefinirSenhaComCodigoInvalidoOuExpiradoDeveSerRecusado() throws Exception {
         Conta conta = cadastrar();
 
+        // inexistente, expirado e usado: a mesma mensagem (#204)
         redefinirSenha("codigo-inexistente", "Recuperada7")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Token de recuperação inválido."));
+                .andExpect(jsonPath("$.message").value(RECUPERACAO_INVALIDA));
 
         solicitarRecuperacao(conta.email()).andExpect(status().isOk());
         String codigo = ultimoCodigoDeRecuperacao(conta);
@@ -142,7 +148,7 @@ class FluxosAuthIntegrationTest extends AbstractAuthIntegrationTest {
 
         redefinirSenha(codigo, "Recuperada7")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Token de recuperação expirado ou já utilizado."));
+                .andExpect(jsonPath("$.message").value(RECUPERACAO_INVALIDA));
         loginTokens(conta.email(), SENHA); // senha original continua valendo
     }
 

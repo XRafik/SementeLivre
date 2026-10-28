@@ -29,6 +29,11 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
 
+    // Uma mensagem só por tipo de token: dizer "não encontrado" ou "expirado" contava
+    // a quem tenta adivinhar se aquele token existe (#204)
+    static final String REFRESH_INVALIDO = "Sessão inválida ou expirada. Faça login novamente.";
+    static final String RECUPERACAO_INVALIDA = "Link de recuperação inválido ou expirado. Peça um novo.";
+
     @Value("${jwt.refresh-expiration-days:7}")
     private Long refreshExpirationDays;
 
@@ -88,10 +93,10 @@ public class AuthService {
     @Transactional
     public TokenResponseDTO refreshToken(RefreshTokenRequestDTO dto) {
         RefreshToken tokenSalvo = refreshTokenRepository.findByToken(dto.refreshToken())
-                .orElseThrow(() -> new IllegalArgumentException("Refresh token não encontrado."));
+                .orElseThrow(() -> new IllegalArgumentException(REFRESH_INVALIDO));
 
         if (tokenSalvo.getRevogado() || tokenSalvo.getDataExpiracao().isBefore(Instant.now())) {
-            throw new IllegalArgumentException("Refresh token expirado ou revogado.");
+            throw new IllegalArgumentException(REFRESH_INVALIDO);
         }
 
         Usuario usuario = tokenSalvo.getUsuario();
@@ -131,10 +136,10 @@ public class AuthService {
     @Transactional
     public void redefinirSenha(RedefinirSenhaDTO dto) {
         TokenRecuperacaoSenha tokenEntity = tokenRecuperacaoRepository.findByToken(dto.token())
-                .orElseThrow(() -> new IllegalArgumentException("Token de recuperação inválido."));
+                .orElseThrow(() -> new IllegalArgumentException(RECUPERACAO_INVALIDA));
 
         if (tokenEntity.getUsado() || tokenEntity.getDataExpiracao().isBefore(Instant.now())) {
-            throw new IllegalArgumentException("Token de recuperação expirado ou já utilizado.");
+            throw new IllegalArgumentException(RECUPERACAO_INVALIDA);
         }
 
         Usuario usuario = tokenEntity.getUsuario();
