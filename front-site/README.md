@@ -14,7 +14,9 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3001](http://localhost:3001) with your browser to see the result.
+
+`npm run dev` só escuta em `127.0.0.1`: o modo de desenvolvimento mostra erros detalhados e não deve ficar aberto para a rede (#205). Para testar no celular pela rede local, use `npm run dev:rede` e desligue quando terminar.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
